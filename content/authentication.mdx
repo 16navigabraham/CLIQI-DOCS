@@ -1,0 +1,108 @@
+# Authentication
+
+## Auth Flow
+
+```
+┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐
+│  User    │───►│  Privy   │───►│ Backend  │───►│  JWT     │
+│  clicks  │    │  Modal   │    │ /privy/  │    │  issued  │
+│  login   │    │ (X/email)│    │  login   │    │  (7d)    │
+└──────────┘    └──────────┘    └──────────┘    └──────────┘
+```
+
+### Step-by-Step
+
+1. User clicks "Get Started" on the landing page
+2. Privy modal opens (X or email login options)
+3. Privy handles the OAuth flow and returns a Privy access token
+4. Frontend calls `POST /api/auth/privy/login` with the Privy token
+5. Backend validates the Privy token via Privy server SDK
+6. If new user: creates account + auto-generates Base & Solana wallets + default settings
+7. Backend issues a JWT (HS256, 7-day expiry)
+8. JWT stored in localStorage, sent on every API request via `Authorization: Bearer` header
+
+---
+
+## Auth Methods
+
+| Method | Purpose |
+|--------|---------|
+| X (Twitter) OAuth | Primary signup/login — connects X account for like monitoring |
+| Email | Account recovery path |
+| Passkey (WebAuthn) | Sensitive operation verification (withdrawals, key export) |
+| Privy re-auth | Fresh token required for wallet export |
+
+---
+
+## JWT Authentication
+
+- **Algorithm:** HS256
+- **Expiry:** 7 days
+- **Payload:** `{ userId, xUsername, isPremium }`
+- **Stored:** Frontend localStorage
+- **Sent:** `Authorization: Bearer <token>` header on every request
+- **Validation:** `authMiddleware` verifies JWT signature and extracts `req.user`
+
+---
+
+## Passkey (WebAuthn)
+
+Passkeys add a second factor for sensitive operations without requiring passwords.
+
+### Registration Flow
+1. User navigates to account settings
+2. Clicks "Register Passkey"
+3. Backend generates registration options (`@simplewebauthn/server`)
+4. Browser prompts for biometric/PIN
+5. Credential stored in database (`Passkey` model)
+
+### Verification Flow
+1. User initiates sensitive operation (withdraw, export key)
+2. Backend generates authentication challenge
+3. Browser prompts for biometric/PIN
+4. Backend verifies the signature
+5. Issues a one-time verification token (5-minute expiry)
+6. Token is consumed when the sensitive operation executes
+
+### Protected Operations
+- Wallet withdrawals
+- Private key export
+- Account deletion
+
+---
+
+## Privy Re-Authentication
+
+For wallet export specifically, Privy re-auth is required:
+
+1. Frontend requests a fresh Privy access token
+2. Token sent to `POST /api/wallet/export-key/request`
+3. Backend verifies the Privy token is fresh (not reused)
+4. HPKE encryption key exchange occurs
+5. Encrypted private key returned to frontend
+6. Frontend decrypts using HPKE (DHKEM\_P256 + HKDF\_SHA256 + CHACHA20\_POLY1305)
+
+---
+
+## Telegram Connection
+
+Users can link their Telegram account for trade notifications:
+
+1. User calls `POST /api/auth/connect/telegram` with their Telegram username
+2. Backend generates a 6-character connect code
+3. User opens the Telegram bot and sends `/connect <code>`
+4. Bot verifies the code and links the Telegram chat ID to the user
+5. Notifications now delivered via Telegram DM
+
+---
+
+## Rate Limiters
+
+All auth endpoints have dedicated rate limits to prevent abuse:
+
+| Endpoint | Window | Max Requests |
+|----------|--------|-------------|
+| General API | 60s | 30 (free) / 120 (premium) |
+| Auth endpoints | 60s | 10 |
+| Privy login | 60s | 10 |
+| X OAuth connect | 60s | 5 |

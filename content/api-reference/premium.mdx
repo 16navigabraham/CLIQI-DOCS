@@ -1,0 +1,120 @@
+# Premium API
+
+## POST /api/premium/subscribe
+
+Subscribe to premium using CLIQI token from your wallet.
+
+**Auth:** Required
+
+**Cost:** $25/month in CLIQI token
+
+**Request Body:**
+```json
+{
+  "paymentChain": "BASE"
+}
+```
+
+Valid chains: `BASE`, `SOLANA`
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "message": "Premium subscription activated successfully!",
+  "premiumUntil": "2026-04-19T12:00:00.000Z",
+  "payment": {
+    "chain": "BASE",
+    "amount": 250000,
+    "amountUsd": 25.00,
+    "txHash": "0x5abc...",
+    "explorerUrl": "https://basescan.org/tx/0x5abc..."
+  }
+}
+```
+
+**Errors:**
+- `400` — Invalid chain, already subscribed, or insufficient CLIQI balance
+- `404` — Wallet not found for specified chain
+- `500` — Payment processing failed
+
+---
+
+## GET /api/premium/status
+
+Get current premium subscription status.
+
+**Auth:** Required
+
+**Response:**
+```json
+{
+  "isPremium": true,
+  "premiumUntil": "2026-04-19T12:00:00.000Z",
+  "daysRemaining": 28
+}
+```
+
+---
+
+## GET /api/premium/history
+
+Get payment history for premium subscriptions. Returns last 20 payments.
+
+**Auth:** Required
+
+**Response:**
+```json
+{
+  "payments": [
+    {
+      "id": "clx...",
+      "chain": "BASE",
+      "amountPaid": "250000",
+      "amountUsd": "25.00",
+      "txHash": "0x5abc...",
+      "explorerUrl": "https://basescan.org/tx/0x5abc...",
+      "status": "CONFIRMED",
+      "startDate": "2026-03-19T12:00:00.000Z",
+      "endDate": "2026-04-19T12:00:00.000Z",
+      "paidAt": "2026-03-19T12:00:15.000Z"
+    }
+  ]
+}
+```
+
+---
+
+## GET /api/premium/pricing
+
+Get current premium pricing in different payment currencies.
+
+**Auth:** Required
+
+**Response:**
+```json
+{
+  "priceUsd": 25.00,
+  "duration": "30 days",
+  "paymentOptions": {
+    "BASE": {
+      "amount": 250000,
+      "symbol": "CLIQI",
+      "priceUsd": 0.0001
+    },
+    "SOLANA": {
+      "amount": 250000,
+      "symbol": "CLIQI",
+      "priceUsd": 0.0001
+    }
+  },
+  "features": [
+    "0.5% platform fee (vs 1% for free users)",
+    "5s like polling (vs 8s for free users)",
+    "Telegram notifications for all trades",
+    "Auto-sell with take-profit & stop-loss",
+    "2-4x higher rate limits",
+    "7-day inactivity timeout (vs 48h)"
+  ]
+}
+```

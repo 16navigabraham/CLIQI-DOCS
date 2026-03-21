@@ -1,0 +1,197 @@
+# WebSocket Events
+
+CLIQI uses Socket.IO for real-time communication. Users receive instant updates about trades, prices, and alerts.
+
+## Connection
+
+```javascript
+const socket = io('https://api.cliqi.bot', {
+  auth: { token: '<jwt_token>' }
+});
+```
+
+On connection, the user is automatically joined to their private room (`user:{userId}`).
+
+---
+
+## Events
+
+### trade:confirmed
+
+Trade successfully confirmed on-chain.
+
+```json
+{
+  "tradeId": "clx...",
+  "txHash": "0x5abc...",
+  "tokenSymbol": "DEGEN",
+  "chain": "BASE",
+  "action": "BUY",
+  "amountIn": "0.005",
+  "amountOut": "42000",
+  "message": "Bought DEGEN for 0.005 ETH",
+  "timestamp": "2026-03-01T00:00:05.000Z"
+}
+```
+
+### trade:failed
+
+Trade execution failed.
+
+```json
+{
+  "tradeId": "clx...",
+  "action": "BUY",
+  "error": "Insufficient SOL balance",
+  "chain": "SOLANA",
+  "message": "Buy trade failed: Insufficient SOL balance",
+  "timestamp": "2026-03-01T00:00:03.000Z"
+}
+```
+
+### trade:rejected
+
+Trade blocked by safety checks before execution.
+
+```json
+{
+  "tradeId": "clx...",
+  "action": "BUY",
+  "riskScore": 85,
+  "reason": "Token risk score 85 exceeds max 60",
+  "message": "Trade blocked: Token risk score 85 exceeds max 60",
+  "timestamp": "2026-03-01T00:00:02.000Z"
+}
+```
+
+### trade:pending
+
+Trade submitted, awaiting on-chain confirmation.
+
+```json
+{
+  "tradeId": "clx...",
+  "tokenAddress": "0xAbC123...",
+  "chain": "BASE",
+  "tweetUrl": "https://x.com/user/status/123...",
+  "timestamp": "2026-03-01T00:00:01.000Z"
+}
+```
+
+### alert:low\_balance
+
+Wallet balance below threshold after a like-to-buy trade. **Premium only.**
+
+```json
+{
+  "chain": "SOLANA",
+  "balanceUsd": 3.50,
+  "thresholdUsd": 10.00,
+  "timestamp": "2026-03-01T00:00:06.000Z"
+}
+```
+
+### alert:daily\_limit
+
+Free user hit their 5 trades/day limit.
+
+```json
+{
+  "spent": 5,
+  "limit": 5,
+  "timestamp": "2026-03-01T00:00:02.000Z"
+}
+```
+
+When this fires, the system also posts to X tagging the user with an upgrade prompt.
+
+### auto-sell:executed
+
+Auto-sell triggered and successfully executed. **Premium only.**
+
+```json
+{
+  "triggerType": "take_profit",
+  "tokenSymbol": "DEGEN",
+  "tokenName": "Degen",
+  "chain": "BASE",
+  "pnlPercent": 52.3,
+  "txHash": "0x9def...",
+  "explorerUrl": "https://basescan.org/tx/0x9def...",
+  "timestamp": "2026-03-01T00:01:00.000Z"
+}
+```
+
+### auto-sell:failed
+
+Auto-sell triggered but execution failed. **Premium only.**
+
+```json
+{
+  "triggerType": "stop_loss",
+  "tokenSymbol": "BONK",
+  "error": "Insufficient liquidity for sell",
+  "timestamp": "2026-03-01T00:01:00.000Z"
+}
+```
+
+### prices:update
+
+Live token prices pushed every 30 seconds. Includes all tokens in the user's wallet.
+
+```json
+{
+  "prices": [
+    {
+      "tokenAddress": "0xAbC123...",
+      "chain": "BASE",
+      "tokenSymbol": "DEGEN",
+      "tokenName": "Degen",
+      "amount": "420.0",
+      "priceUsd": 0.000450,
+      "valueUsd": 0.189
+    }
+  ],
+  "timestamp": "2026-03-01T00:00:30.000Z"
+}
+```
+
+---
+
+## Frontend Integration
+
+All trade events include a `message` field with pre-formatted text for toast notifications:
+
+```javascript
+socket.on('trade:confirmed', (data) => {
+  toast.success(data.message);
+});
+
+socket.on('trade:failed', (data) => {
+  toast.error(data.message);
+});
+
+socket.on('trade:rejected', (data) => {
+  toast.warning(data.message);
+});
+
+socket.on('prices:update', (data) => {
+  updateTokenPrices(data.prices);
+});
+```
+
+---
+
+## Event Summary
+
+| Event | Premium Only? |
+|-------|--------------|
+| `trade:confirmed` | No |
+| `trade:failed` | No |
+| `trade:rejected` | No |
+| `trade:pending` | No |
+| `alert:low_balance` | Yes |
+| `alert:daily_limit` | No |
+| `auto-sell:executed` | Yes |
+| `auto-sell:failed` | Yes |
+| `prices:update` | No |

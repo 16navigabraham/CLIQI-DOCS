@@ -1,0 +1,57 @@
+# Environment Variables
+
+## Required
+
+These must be set or the server will exit on startup:
+
+| Variable | Description |
+|----------|-------------|
+| `NODE_ENV` | `production` or `development` |
+| `PORT` | Server port |
+| `API_URL` | Backend URL (e.g., `https://api.cliqi.bot`) |
+| `FRONTEND_URL` | Frontend URL (e.g., `https://cliqi.bot`) |
+| `DATABASE_URL` | Neon pgbouncer pooler connection string |
+| `DIRECT_DATABASE_URL` | Neon direct connection string |
+| `UPSTASH_REDIS_REST_URL` | Upstash Redis REST endpoint |
+| `UPSTASH_REDIS_REST_TOKEN` | Upstash Redis auth token |
+| `JWT_SECRET` | Minimum 16 characters, used for JWT signing (HS256) |
+| `X_CLIENT_ID` | Twitter OAuth 2.0 client ID |
+| `X_CLIENT_SECRET` | Twitter OAuth 2.0 client secret |
+| `X_CALLBACK_URL` | OAuth callback URL |
+| `ENCRYPTION_KEY` | 64-character hex string for AES-256-GCM wallet encryption |
+| `TELEGRAM_BOT_TOKEN` | Grammy bot token from BotFather |
+
+---
+
+## Optional
+
+Warnings logged if missing, but server starts:
+
+| Variable | Description |
+|----------|-------------|
+| `SOLANA_RPC_URL` | Helius/QuickNode RPC (default: mainnet-beta public) |
+| `BASE_RPC_URL` | Alchemy RPC for Base chain |
+| `JUPITER_API_KEY` | Jupiter portal API key (higher rate limits) |
+| `ZEROX_API_KEY` | 0x swap API key |
+| `TREASURY_WALLET_SOLANA` | SOL fee treasury address |
+| `TREASURY_WALLET_BASE` | Base fee treasury address |
+| `TREASURY_WALLET_BASE_PRIVATE_KEY` | Private key for gas sponsorship on USDC sells |
+| `TELEGRAM_ADMIN_CHAT_ID` | Chat ID for admin error alerts |
+| `SENTRY_DSN` | Sentry error tracking DSN |
+| `PRIVY_APP_ID` | Privy application ID |
+| `PRIVY_APP_SECRET` | Privy application secret |
+| `PRIVY_AUTHORIZATION_PRIVATE_KEY` | Privy wallet authorization key (`wallet-auth:XXXXX`) |
+| `ADMIN_SECRET` | Bearer token for admin dashboard endpoints |
+| `X_BOT_ACCESS_TOKEN` | OAuth 1.0a token for auto-posting trades to X |
+| `X_BOT_ACCESS_SECRET` | OAuth 1.0a secret for trade posting |
+
+---
+
+## Where to Set
+
+| Environment | Location |
+|-------------|----------|
+| Production (backend) | Render dashboard → Environment |
+| Production (frontend) | Vercel dashboard → Environment Variables |
+| Development | `.env` file (never committed — use `.env.example` as template) |
+| CI/CD | GitHub Actions secrets |

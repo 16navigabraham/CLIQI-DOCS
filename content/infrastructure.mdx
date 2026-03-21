@@ -1,0 +1,123 @@
+# Infrastructure & Deployment
+
+## CI/CD Pipeline (GitHub Actions)
+
+Both repos have automated pipelines on push/PR:
+
+```
+Push/PR → Secret Scan (gitleaks) → Dependency Audit → Install →
+Prisma Generate → Test (jest) → Build
+```
+
+Branch protection is enabled on `main` — all checks must pass before merge.
+
+---
+
+## Backend (Render)
+
+| Setting | Value |
+|---------|-------|
+| Plan | Starter (512 MB RAM) |
+| Build command | `npx prisma generate && npm start` |
+| Region | US |
+| Auto-deploy | On push to main |
+
+### Memory Management
+
+With only 512 MB, the server uses several strategies to stay within limits:
+
+- **Activity gate:** Background jobs skip when no WebSocket clients connected
+- **Inactivity monitor:** Pauses idle users (48h free, 7d premium)
+- **In-memory queue:** Max 3 concurrent trades to limit parallel processing
+- **Quote cache:** 15-second TTL prevents redundant aggregator API calls
+- **Admin stats cache:** 60-second TTL per time range
+
+---
+
+## Frontend (Vercel)
+
+| Setting | Value |
+|---------|-------|
+| Framework | Next.js (auto-detected) |
+| Node version | 24 |
+| Build command | `next build` |
+| Domain | cliqi.bot |
+| WWW redirect | www.cliqi.bot → cliqi.bot |
+
+---
+
+## Database (Neon)
+
+| Setting | Value |
+|---------|-------|
+| Provider | Neon PostgreSQL |
+| Plan | Serverless Launch |
+| Connection | pgbouncer pooler URL (`DATABASE_URL`) |
+| Direct | Direct connection URL (`DIRECT_DATABASE_URL`) |
+| Schema management | `npx prisma db push` |
+| Decimal precision | `Decimal(18, 8)` for amounts, `Decimal(18, 2)` for USD |
+
+**Important:** `prisma migrate` is **not supported** on Neon — use `prisma db push` only.
+
+### Connection Pooling
+
+Neon provides a pgbouncer pooler endpoint for connection pooling. The Prisma client is configured to use:
+- `DATABASE_URL` — pgbouncer pooler URL (for queries)
+- `DIRECT_DATABASE_URL` — direct connection (for schema push)
+
+---
+
+## Cache (Upstash Redis)
+
+| Setting | Value |
+|---------|-------|
+| Protocol | REST API (HTTP) |
+| SDK | `@upstash/redis` |
+| Usage | Polling state, rate limiting, activity tracking, daily limits |
+
+**Not using ioredis** — Upstash REST API works within Render's connection limits and doesn't require persistent TCP connections.
+
+### Redis Key Patterns
+
+| Key | Purpose | TTL |
+|-----|---------|-----|
+| `poll:user:{id}:lastTweetId` | Last processed tweet ID | Persistent |
+| `poll:user:{id}:lastPolledAt` | Last poll timestamp | Persistent |
+| `poll:skip:{reason}` | Skip flags (rate limited, daily limit) | Varies |
+| `daily:spend:{userId}:{date}` | Daily spending tracker | 24h |
+| `ratelimit:{tier}:{identifier}` | Rate limit counters | 60s |
+
+---
+
+## Wallet Infrastructure (Privy)
+
+| Feature | Implementation |
+|---------|---------------|
+| Wallet creation | Privy server SDK — auto-creates on signup |
+| Transaction signing | Privy API — keys never touch our server |
+| Supported chains | Base (EVM) + Solana |
+| Wallet types | EOA (externally owned account) |
+| Authorization | `PRIVY_AUTHORIZATION_PRIVATE_KEY` |
+| Rate limiting | `privyRetry` wrapper with exponential backoff |
+
+---
+
+## Error Tracking (Sentry)
+
+- Captures unhandled exceptions and rejections
+- Request context attached via `Sentry.requestHandler()`
+- Error handler middleware captures route errors
+- DSN configured via `SENTRY_DSN` env var
+- Source maps uploaded during build
+
+---
+
+## Monitoring
+
+| Channel | What's Monitored |
+|---------|-----------------|
+| Sentry | Unhandled exceptions, route errors |
+| Admin Telegram | Critical errors (trade failures, job crashes, withdrawal errors) |
+| Winston logs | All application logs (JSON format) |
+| Render dashboard | CPU, memory, response times |
+| GitHub Actions | CI/CD pipeline status |

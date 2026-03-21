@@ -1,0 +1,159 @@
+# Trade Pipeline
+
+## Complete Flow
+
+The trade pipeline is the core of CLIQI — it takes a user's X like and turns it into a token purchase in under 10 seconds.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ 1. DETECTION — like-poller.js                                   │
+│    Syncs every 30s, polls each user's X likes                   │
+│    Extracts contract addresses (EVM 0x... or Solana base58)     │
+│    Detects chain from address format                            │
+└──────────────────────────┬──────────────────────────────────────┘
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ 2. QUEUING — trade-queue.js                                     │
+│    Priority queue (max 3 concurrent)                            │
+│    Deduplication by userId + contract address                   │
+│    Priority: MANUAL > AUTO_SELL > LIKE                          │
+└──────────────────────────┬──────────────────────────────────────┘
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ 3. VALIDATION — trade-orchestrator.js                           │
+│    ├─ Check daily trade limit (5/day free, unlimited premium)   │
+│    ├─ Token safety check (risk score, honeypot, liquidity)      │
+│    ├─ Min buy amount validation ($2 USD)                        │
+│    ├─ Wallet balance check                                      │
+│    └─ Slippage override enforcement                             │
+└──────────────────────────┬──────────────────────────────────────┘
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ 4. QUOTE — quote-service.js + aggregators/                      │
+│    Race multiple aggregators → return best price                │
+│    Solana: Jupiter                                              │
+│    Base: 0x vs Odos vs KyberSwap (parallel race)                │
+│    15-second quote cache                                        │
+└──────────────────────────┬──────────────────────────────────────┘
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ 5. EXECUTION                                                     │
+│    Solana: Jupiter API → sign with Privy wallet → confirm       │
+│    Base:   Best aggregator → ethers tx → confirm                │
+│    USDC mode: 0x Gasless (gas-sponsored, no ETH needed)         │
+│    Platform fee deducted from input amount before swap           │
+└──────────────────────────┬──────────────────────────────────────┘
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ 6. POST-TRADE                                                    │
+│    ├─ Save trade record (CONFIRMED/FAILED)                      │
+│    ├─ Transfer platform fee to treasury                         │
+│    ├─ WebSocket: real-time notification to user                 │
+│    ├─ Telegram: alert (premium + enabled)                       │
+│    ├─ X: auto-post trade card (3-min cooldown)                  │
+│    └─ Low balance check → alert if below threshold              │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Step 1: Detection
+
+The **like-poller** runs continuously, syncing each active user's recent X likes:
+
+- Polls X API v2 for liked tweets every **5s** (premium) or **8s** (free)
+- Uses `ca-parser.js` to extract contract addresses from tweet text
+- Detects chain automatically:
+  - Starts with `0x` (42 chars) → **Base**
+  - Base58 string (32-44 chars) → **Solana**
+- Stores `lastTweetId` per user to avoid re-processing
+- Respects X API rate limits with exponential backoff
+
+## Step 2: Queuing
+
+The **trade queue** prevents system overload and ensures fairness:
+
+- **Max concurrency:** 3 trades executing simultaneously
+- **Deduplication:** Same user + same token = rejected (prevents double-buys)
+- **Priority levels:**
+  1. `MANUAL` — User-initiated buys/sells from the dashboard
+  2. `AUTO_SELL` — Take-profit/stop-loss triggers
+  3. `LIKE` — Automated like-to-buy trades
+
+## Step 3: Validation
+
+Before any swap, the **trade orchestrator** runs safety checks:
+
+| Check | Rule | On Failure |
+|-------|------|-----------|
+| Daily limit | 5 trades/day (free), unlimited (premium) | `trade:rejected` event |
+| Token safety | Risk score from GoPlusLabs + RugCheck | Blocked if score > user's `maxRiskScore` |
+| Honeypot | Can the token be sold? | Hard block — always rejected |
+| Liquidity | Minimum pool liquidity | Blocked if below user's `minLiquidityUsd` |
+| Balance | Sufficient wallet balance | `trade:failed` event |
+| Slippage | Enforced minimums per swap type | Overridden to safe minimum |
+
+## Step 4: Quote
+
+The **quote engine** races multiple aggregators for the best price:
+
+**Base (EVM):**
+- 0x, Odos, and KyberSwap race in parallel
+- First response with valid `amountOut` wins
+- 15-second cache prevents redundant API calls
+
+**Solana:**
+- Jupiter is the primary aggregator
+- PumpPortal used for Pump.fun tokens specifically
+
+## Step 5: Execution
+
+**Solana flow:**
+1. Jupiter returns serialized transaction
+2. Sign with Privy server wallet
+3. Submit to Solana RPC
+4. Confirm on-chain (poll for confirmation)
+
+**Base (ETH mode):**
+1. Build swap transaction from best aggregator
+2. Sign and send via ethers.js
+3. Wait for transaction receipt
+
+**Base (USDC mode):**
+1. 0x Gasless API builds gas-sponsored transaction
+2. No ETH needed — gas is covered
+3. Fee deducted from USDC input pre-swap
+
+## Step 6: Post-Trade
+
+After swap confirmation:
+
+1. **Database:** Trade record saved with `CONFIRMED` status, amounts, fees, tx hash
+2. **Treasury:** Platform fee transferred to treasury wallet
+3. **WebSocket:** `trade:confirmed` event pushed to user's browser
+4. **Telegram:** Notification sent (if premium + enabled)
+5. **X post:** Trade card auto-posted to X (3-minute cooldown between posts)
+6. **Low balance:** If wallet drops below threshold, `alert:low_balance` event sent
+
+---
+
+## Stuck Trade Resolution
+
+A background job runs every **5 minutes** to catch trades that got stuck:
+
+- Finds trades in `PENDING` or `SUBMITTED` status for > 10 minutes
+- Queries on-chain status (Solana RPC / EVM receipt)
+- Updates to `CONFIRMED` or `FAILED` with appropriate error message
+- Prevents orphaned trades from lingering in the system
+
+---
+
+## Trade Statuses
+
+| Status | Meaning |
+|--------|---------|
+| `PENDING` | Trade created, not yet submitted to chain |
+| `SUBMITTED` | Transaction sent, awaiting confirmation |
+| `CONFIRMED` | On-chain confirmation received |
+| `FAILED` | Transaction failed on-chain |
+| `REJECTED` | Blocked by safety checks before execution |

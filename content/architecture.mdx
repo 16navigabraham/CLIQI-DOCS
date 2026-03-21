@@ -1,0 +1,197 @@
+# Architecture
+
+## High-Level System Diagram
+
+```
+                          ┌──────────────┐
+                          │   X (Twitter) │
+                          │   Like API    │
+                          └──────┬───────┘
+                                 │ poll likes (every 5-8s)
+                                 ▼
+┌─────────────┐         ┌──────────────────┐         ┌─────────────┐
+│  Next.js    │◄───────►│   Express.js     │◄───────►│  PostgreSQL │
+│  Frontend   │  REST   │   Backend        │  Prisma │  (Neon)     │
+│  (Vercel)   │  + WS   │   (Render)       │         └─────────────┘
+└─────────────┘         │                  │
+                        │  ┌────────────┐  │         ┌─────────────┐
+                        │  │ Trade Queue│  │◄───────►│ Upstash     │
+                        │  │ (in-memory)│  │  REST   │ Redis       │
+                        │  └─────┬──────┘  │         └─────────────┘
+                        │        │         │
+                        │        ▼         │         ┌─────────────┐
+                        │  ┌────────────┐  │◄───────►│ Privy       │
+                        │  │ Swap Engine│  │  HTTPS  │ (Wallets)   │
+                        │  └─────┬──────┘  │         └─────────────┘
+                        │        │         │
+                        └────────┼─────────┘         ┌─────────────┐
+                                 │                    │ Grammy Bot  │
+                                 ▼                    │ (Telegram)  │
+                  ┌──────────────────────────┐        └─────────────┘
+                  │     DEX Aggregators      │
+                  ├──────────┬───────────────┤
+                  │ Base     │ Solana        │
+                  │ 0x / 0x  │ Jupiter       │
+                  │ Gasless  │ PumpFun       │
+                  │ KyberSwap│               │
+                  │ Odos     │               │
+                  └──────────┴───────────────┘
+```
+
+---
+
+## Backend File Structure
+
+```
+src/
+├── config/
+│   └── index.js              # Zod-validated env config (exits on missing required vars)
+├── lib/
+│   ├── prisma.js             # PrismaClient singleton (pgbouncer-aware)
+│   ├── redis.js              # Upstash REST Redis singleton
+│   ├── sentry.js             # Sentry initialization
+│   └── trade-queue.js        # Priority queue (max 3 concurrent, dedup)
+├── middleware/
+│   ├── auth.js               # JWT verification → req.user
+│   ├── rate-limiter.js       # Sliding window rate limiters (8 tiers)
+│   ├── https-enforcer.js     # Force HTTPS in production
+│   ├── scanner-shield.js     # Block automated probes (.env, .php, .git)
+│   ├── privy-reauth.js       # Privy token re-verification for sensitive ops
+│   └── passkey-required.js   # One-time passkey verification tokens
+├── routes/
+│   ├── auth.js               # X OAuth, Privy login, account management
+│   ├── trades.js             # Buy/sell/swap, portfolio, PnL, trade history
+│   ├── wallet.js             # Balances, deposits, withdrawals
+│   ├── wallet-export.js      # HPKE-encrypted private key export
+│   ├── settings.js           # Trading parameters, notifications, auto-sell
+│   ├── premium.js            # CLIQI token subscription ($25/mo)
+│   ├── passkey.js            # WebAuthn register/authenticate
+│   └── admin.js              # Admin dashboard stats (Bearer auth)
+├── services/
+│   ├── trade-orchestrator.js # Core: like → validate → swap → confirm
+│   ├── price-oracle.js       # CoinGecko + DEXScreener (5-min cache)
+│   ├── notifications.js      # Telegram + WebSocket + X post dispatcher
+│   ├── auto-sell.js          # TP/SL monitoring (premium, every 30s)
+│   ├── ca-parser.js          # Extract contract addresses from tweet text
+│   ├── error-notifier.js     # Admin TG alerts + Sentry (rate-limited)
+│   ├── premium-expiry.js     # Hourly downgrade check
+│   ├── inactivity-monitor.js # Pause idle users (48h free / 7d premium)
+│   ├── x-monitor/
+│   │   └── like-poller.js    # X like detection loop
+│   ├── x-trade-poster.js     # Auto-post trades to X (3-min cooldown)
+│   ├── x-mention-monitor.js  # @CliqiApp mention tracking
+│   ├── alchemy-tokens.js     # ERC-20 discovery via Alchemy
+│   ├── fee-collector.js      # Platform fee calculation + treasury transfer
+│   ├── safety/
+│   │   └── token-safety.js   # Risk scoring (GoPlusLabs + RugCheck)
+│   ├── wallet/
+│   │   └── wallet-service.js # Privy server wallets + local encrypted keys
+│   └── swap/
+│       ├── evm-swap.js       # Base swap execution (aggregator racing)
+│       ├── solana-swap.js    # Solana swap execution (Jupiter)
+│       ├── pumpfun-swap.js   # Pump.fun native swaps
+│       ├── quote-service.js  # Unified quote interface
+│       └── aggregators/
+│           ├── quote-engine.js          # Multi-aggregator race logic
+│           ├── price-engine.js          # Best price routing
+│           ├── zerox-client.js          # 0x API client
+│           ├── zerox-gasless-client.js  # 0x gasless (USDC on Base)
+│           ├── kyberswap-client.js      # KyberSwap client
+│           └── odos-client.js           # Odos client
+├── utils/
+│   ├── logger.js             # Winston logger (JSON format)
+│   ├── safe-interval.js      # Crash-resilient setInterval + admin alerts
+│   └── privy-retry.js        # Exponential backoff for Privy API calls
+└── index.js                  # App entry: Express + Grammy + Socket.IO + jobs
+```
+
+---
+
+## Frontend File Structure
+
+```
+src/
+├── app/
+│   ├── layout.tsx            # Root layout, metadata, JSON-LD, analytics
+│   ├── page.tsx              # Landing page (hero, features, CTA)
+│   ├── admin/page.tsx        # Admin dashboard (Bearer auth)
+│   ├── auth/callback/page.tsx # OAuth callback handler
+│   ├── guide/page.tsx        # User guide
+│   ├── terms/page.tsx        # Terms of Service
+│   ├── privacy/page.tsx      # Privacy Policy
+│   ├── share/trade/[tradeId]/
+│   │   ├── page.tsx          # Shareable trade page (OG meta)
+│   │   └── opengraph-image.tsx # Satori OG image generation
+│   └── dashboard/
+│       ├── layout.tsx        # Protected layout (auth guard, sidebar)
+│       ├── page.tsx          # Main dashboard
+│       ├── wallet/page.tsx   # Wallet management
+│       ├── portfolio/page.tsx # Portfolio + PnL
+│       ├── trades/page.tsx   # Trade history
+│       ├── trade/page.tsx    # Trade settings
+│       ├── account/page.tsx  # Account + connections
+│       ├── tokens/page.tsx   # Token explorer
+│       └── settings/page.tsx # User settings
+├── components/
+│   ├── TokenIcon.tsx         # Token logo (BlockScout/CoinGecko)
+│   ├── ChainIcon.tsx         # Chain badge (Base/Solana)
+│   ├── OnboardingWizard.tsx  # First-time setup flow
+│   ├── PasskeySetup.tsx      # Passkey registration
+│   ├── PasskeyAuthModal.tsx  # Passkey auth modal
+│   ├── SecureExportPrivateKey.tsx # HPKE key export
+│   ├── PnLBadge.tsx          # P&L indicator
+│   ├── HeroAnimation.tsx     # Landing page animation
+│   ├── LiveIndicator.tsx     # WebSocket status
+│   ├── share/
+│   │   ├── PnLCard.tsx       # Shareable PnL card
+│   │   ├── SharePnLButton.tsx
+│   │   └── SharePnLModal.tsx
+│   └── skeletons/            # Loading states
+├── lib/
+│   ├── api.ts                # Axios client + API modules
+│   ├── store.ts              # Zustand auth store
+│   ├── socket.ts             # Socket.IO hooks (prices, trades, alerts)
+│   ├── sanitize.ts           # XSS/injection prevention
+│   └── crypto/decrypt.ts     # HPKE decryption helper
+├── providers/
+│   ├── ClientProviders.tsx   # Privy + Sonner wrapper
+│   ├── SocketProvider.tsx    # WebSocket lifecycle + toast notifications
+│   └── ThemeProvider.tsx     # Dark/light mode context
+└── middleware.ts             # Domain redirect (vercel.app → cliqi.bot)
+```
+
+---
+
+## Database Schema (Key Models)
+
+```prisma
+User          # id, xUserId, xUsername, email, isPremium, premiumUntil, wallets[], trades[]
+Wallet        # userId, chain (SOLANA|BASE), address, privyWalletId, walletType (EOA|SMART_WALLET)
+Trade         # userId, chain, tokenAddress, action (BUY|SELL), amountIn/Out, amountInUsd,
+              # txHash, txStatus (PENDING|SUBMITTED|CONFIRMED|FAILED|REJECTED), platformFee
+UserSettings  # userId, solUsdBuyAmount, baseUsdcBuyAmount, maxSlippageBps, dailyLimitUsd,
+              # autoSellEnabled, takeProfitPct, stopLossPct, tgNotificationsEnabled
+PremiumPayment # userId, paymentChain, amountPaid, amountUsd, txHash, status, startDate, endDate
+PollingState   # userId, lastTweetId, lastPolledAt, pollErrors, isRateLimited
+TokenCache     # address+chain (composite), symbol, name, riskScore, liquidityUsd, isHoneypot
+Passkey        # userId, credentialId, publicKey, counter, transports
+```
+
+---
+
+## Middleware Stack (order matters)
+
+```
+1. helmet()                  # Security headers
+2. CORS (whitelist)          # Origin enforcement
+3. https-enforcer            # Force HTTPS in production
+4. scanner-shield            # Block probe requests
+5. morgan (HTTP logging)     # Request logging
+6. express.json()            # Body parsing
+7. sentry.requestHandler()   # Sentry request context
+8. Rate limiters             # Per-route rate limiting
+9. authMiddleware            # JWT verification (protected routes)
+10. Route handlers           # Business logic
+11. sentry.errorHandler()    # Sentry error capture
+12. Global error handler     # Catch-all → admin TG notification
+```

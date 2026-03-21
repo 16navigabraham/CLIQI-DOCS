@@ -1,0 +1,43 @@
+# API Reference
+
+**Base URL:** `https://api.cliqi.bot/api`
+
+All authenticated endpoints require: `Authorization: Bearer <jwt_token>`
+
+---
+
+## Endpoints Overview
+
+| Mount | Auth | Key Endpoints |
+|-------|------|--------------|
+| [`/api/auth`](auth.md) | Public/JWT | X OAuth, Privy login, /me, logout, Telegram connect |
+| [`/api/wallet`](wallet.md) | JWT | Balances, deposits, withdrawals, token holdings |
+| [`/api/trades`](trades.md) | JWT | Buy, sell, swap, portfolio, PnL, trade history |
+| [`/api/settings`](settings.md) | JWT | Trading parameters, pause/resume |
+| [`/api/premium`](premium.md) | JWT | Subscribe, status, pricing, payment history |
+| [`/api/admin`](admin.md) | Bearer | Platform stats (admin only) |
+
+---
+
+## Error Responses
+
+All endpoints return errors in this format:
+
+```json
+{ "error": "Human-readable error message" }
+```
+
+| Status | Meaning |
+|--------|---------|
+| 400 | Bad request / validation error |
+| 401 | Missing or invalid JWT token |
+| 404 | Resource not found |
+| 429 | Rate limited — try again later |
+| 500 | Internal server error |
+| 503 | Service not configured (e.g., ADMIN\_SECRET missing) |
+
+---
+
+## Real-Time Updates
+
+CLIQI uses Socket.IO for real-time events. See the [WebSocket Events](websocket.md) page for connection details and event reference.

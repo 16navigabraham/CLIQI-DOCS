@@ -1,0 +1,105 @@
+# Testing
+
+## Framework
+
+| Tool | Version | Purpose |
+|------|---------|---------|
+| Jest | 29.7.0 | Test runner + assertions |
+| Supertest | 7.2.2 | HTTP endpoint testing |
+
+---
+
+## Running Tests
+
+```bash
+# Full test suite
+npm test
+
+# Watch mode (re-runs on file changes)
+npm run test:watch
+```
+
+Jest is configured with `--forceExit --detectOpenHandles` to prevent hanging from unclosed connections.
+
+---
+
+## Test Architecture
+
+- **All external calls are mocked** — Prisma, Redis, Privy, RPC nodes, aggregator APIs
+- **Test directory mirrors source:** `tests/` follows the same structure as `src/`
+- **Module mocking:** `jest.mock()` declared before `require()` to intercept transitive imports
+- **Isolated modules:** `jest.isolateModules()` used for route tests to prevent cache contamination
+
+---
+
+## Coverage
+
+**40 test suites, 687 tests**
+
+### Routes
+| Suite | Tests | Covers |
+|-------|-------|--------|
+| auth | — | X OAuth, Privy login, /me, logout, Telegram connect |
+| trades | — | Buy, sell, swap, portfolio, PnL, trade history |
+| wallet | — | Balances, deposits, withdrawals, token holdings |
+| settings | — | Get/update settings, pause/resume |
+| premium | — | Subscribe, status, payment validation |
+| admin | 19 | Auth middleware, time ranges, trade stats, volume, revenue, top tokens |
+| passkey | — | WebAuthn registration, authentication, verification |
+
+### Services
+| Suite | Tests | Covers |
+|-------|-------|--------|
+| trade-orchestrator | 6 suites | Full trade lifecycle, validation, safety checks, fee calculation |
+| auto-sell | — | TP/SL monitoring, trigger execution, premium gating |
+| like-poller | — | X like detection, CA extraction, rate limit handling |
+| price-oracle | — | CoinGecko + DEXScreener caching, fallback logic |
+| notifications | — | Telegram, WebSocket, X post dispatch |
+| token-safety | — | GoPlusLabs + RugCheck scoring, honeypot detection |
+| portfolio-reconciliation | 7 | On-chain balance verification, decimal mismatch, closed positions |
+| trades-pnl | — | Realized/unrealized P&L calculation, weighted average cost |
+
+### Utils & Middleware
+| Suite | Tests | Covers |
+|-------|-------|--------|
+| safe-interval | — | Crash resilience, overlap prevention, admin alerts |
+| auth middleware | — | JWT verification, expired tokens, missing headers |
+| rate-limiter | — | Sliding window, premium boost, tier enforcement |
+
+---
+
+## Mock Patterns
+
+### Prisma
+
+```javascript
+jest.mock('../../src/lib/prisma', () => ({
+  user: { count: jest.fn(), findMany: jest.fn(), findUnique: jest.fn() },
+  trade: { findMany: jest.fn(), groupBy: jest.fn(), create: jest.fn() },
+  $queryRaw: jest.fn(),
+}));
+```
+
+### Error Notifier
+
+Required in every test file that transitively imports it:
+
+```javascript
+jest.mock('../../src/services/error-notifier', () => ({
+  notifyError: jest.fn(),
+  notifyAdmin: jest.fn(),
+}));
+```
+
+### Auth Middleware
+
+Bypass auth for route testing:
+
+```javascript
+jest.mock('../../src/middleware/auth', () => ({
+  authMiddleware: (req, res, next) => {
+    req.user = { userId: 'test-user' };
+    next();
+  },
+}));
+```

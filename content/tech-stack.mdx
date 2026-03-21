@@ -1,0 +1,93 @@
+# Tech Stack
+
+## Backend (CLIQI-SERVER)
+
+| Layer | Technology | Version |
+|-------|-----------|---------|
+| Runtime | Node.js | 20 |
+| Framework | Express.js | 4.21.0 |
+| Language | JavaScript | ES2020+ |
+| Database | PostgreSQL (Neon serverless) | — |
+| ORM | Prisma | 5.22.0 |
+| Cache | Upstash Redis (REST) | 1.36.2 |
+| Real-time | Socket.IO | 4.8.0 |
+| Validation | Zod | 3.23.0 |
+| Logging | Winston + Morgan | 3.14.0 / 1.10.0 |
+| Error Tracking | Sentry | 10.38.0 |
+| Testing | Jest + Supertest | 29.7.0 / 7.2.2 |
+| HTTP Client | Axios | 1.7.0 |
+
+### Auth & Wallet
+
+| Technology | Purpose |
+|-----------|---------|
+| Privy server-auth (1.32.5) | Wallet creation, server wallets, user auth |
+| jsonwebtoken (9.0.0) | Session JWT tokens |
+| @simplewebauthn/server (10.0.1) | Passkey/WebAuthn registration & verification |
+| @hpke/core + chacha20poly1305 | HPKE encryption for Privy wallet export |
+
+### Blockchain — Base (EVM)
+
+| Technology | Purpose |
+|-----------|---------|
+| ethers (6.13.0) | Provider, signers, contract interaction |
+| @uniswap/sdk-core + v4-sdk | Direct Uniswap V4 routing |
+| 0x API | Swap aggregator |
+| 0x Gasless API | USDC gasless swaps (gas-sponsored) |
+| KyberSwap API | Swap aggregator |
+| Odos API | Swap aggregator |
+| Alchemy API | Token discovery + balance fetching |
+
+### Blockchain — Solana
+
+| Technology | Purpose |
+|-----------|---------|
+| @solana/web3.js (1.95.0) | RPC calls, transaction signing |
+| @solana/spl-token (0.1.8) | SPL token operations (balances, transfers) |
+| Jupiter (REST API) | Primary swap aggregator |
+| PumpPortal | Pump.fun token swaps |
+
+### Social & Messaging
+
+| Technology | Purpose |
+|-----------|---------|
+| twitter-api-v2 (1.17.0) | X like polling, trade posting |
+| grammy (1.30.0) | Telegram bot + admin alerts |
+
+---
+
+## Frontend (CLIQI-CLIENT)
+
+| Layer | Technology | Version |
+|-------|-----------|---------|
+| Framework | Next.js (App Router) | 16.1.6 |
+| Language | TypeScript (strict) | 5.x |
+| UI Library | React | 18.3.0 |
+| Styling | Tailwind CSS | 3.4.0 |
+| Components | DaisyUI | 5.5.19 |
+| Animations | Framer Motion | 11.0.0 |
+| Icons | Lucide React | 0.400.0 |
+| State | Zustand | 4.5.0 |
+| Auth | @privy-io/react-auth | 3.14.1 |
+| Passkeys | @simplewebauthn/browser | 10.0.0 |
+| WebSockets | socket.io-client | 4.7.0 |
+| HTTP | Axios | 1.7.0 |
+| Dates | date-fns | 3.6.0 |
+| Toasts | Sonner | 1.5.0 |
+| QR Codes | qrcode + qrcode.react | 1.5.4 / 4.2.0 |
+| Screenshots | html-to-image | 1.11.13 |
+| Analytics | @vercel/analytics | 1.6.1 |
+
+---
+
+## Infrastructure
+
+| Service | Provider | Plan |
+|---------|----------|------|
+| Database | Neon PostgreSQL | Serverless Launch |
+| Cache | Upstash Redis | REST API |
+| Backend hosting | Render | Starter (512 MB) |
+| Frontend hosting | Vercel | — |
+| Wallet infrastructure | Privy | Server wallets |
+| Error tracking | Sentry | — |
+| CI/CD | GitHub Actions | Both repos |

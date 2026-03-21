@@ -1,0 +1,217 @@
+# Real-Time System
+
+CLIQI uses Socket.IO for real-time communication between the backend and frontend. Users receive instant updates about trades, prices, and alerts without polling.
+
+## Connection
+
+```javascript
+const socket = io('https://api.cliqi.bot', {
+  auth: { token: '<jwt_token>' }
+});
+```
+
+On connection, the user is automatically joined to their private room (`user:{userId}`).
+
+---
+
+## Server → Client Events
+
+### trade:confirmed
+
+Emitted when a BUY or SELL trade is successfully confirmed on-chain.
+
+```json
+{
+  "tradeId": "clx...",
+  "txHash": "0x5abc...",
+  "tokenSymbol": "DEGEN",
+  "chain": "BASE",
+  "action": "BUY",
+  "amountIn": "0.005",
+  "amountOut": "42000",
+  "message": "Bought DEGEN for 0.005 ETH",
+  "timestamp": "2026-03-01T00:00:05.000Z"
+}
+```
+
+### trade:failed
+
+Emitted when a trade fails during execution.
+
+```json
+{
+  "tradeId": "clx...",
+  "action": "BUY",
+  "error": "Insufficient SOL balance. Have: 0.05, Need: 0.1",
+  "chain": "SOLANA",
+  "message": "Buy trade failed: Insufficient SOL balance",
+  "timestamp": "2026-03-01T00:00:03.000Z"
+}
+```
+
+### trade:rejected
+
+Emitted when a trade is blocked by safety checks before execution.
+
+```json
+{
+  "tradeId": "clx...",
+  "action": "BUY",
+  "riskScore": 85,
+  "reason": "Token risk score 85 exceeds max 60",
+  "message": "Trade blocked: Token risk score 85 exceeds max 60",
+  "timestamp": "2026-03-01T00:00:02.000Z"
+}
+```
+
+### trade:pending
+
+Emitted when a trade is submitted but not yet confirmed.
+
+```json
+{
+  "tradeId": "clx...",
+  "tokenAddress": "0xAbC123...",
+  "chain": "BASE",
+  "tweetUrl": "https://x.com/user/status/123...",
+  "timestamp": "2026-03-01T00:00:01.000Z"
+}
+```
+
+### alert:low\_balance
+
+Emitted after a like-to-buy trade when wallet balance drops below the user's threshold. Premium only.
+
+```json
+{
+  "chain": "SOLANA",
+  "balanceUsd": 3.50,
+  "thresholdUsd": 10.00,
+  "timestamp": "2026-03-01T00:00:06.000Z"
+}
+```
+
+### alert:daily\_limit
+
+Emitted when a free user hits their 5 trades/day limit.
+
+```json
+{
+  "spent": 5,
+  "limit": 5,
+  "timestamp": "2026-03-01T00:00:02.000Z"
+}
+```
+
+### auto-sell:executed
+
+Emitted when auto-sell triggers and successfully executes. Premium only.
+
+```json
+{
+  "triggerType": "take_profit",
+  "tokenSymbol": "DEGEN",
+  "tokenName": "Degen",
+  "chain": "BASE",
+  "pnlPercent": 52.3,
+  "txHash": "0x9def...",
+  "explorerUrl": "https://basescan.org/tx/0x9def...",
+  "timestamp": "2026-03-01T00:01:00.000Z"
+}
+```
+
+### auto-sell:failed
+
+Emitted when auto-sell triggers but execution fails. Premium only.
+
+```json
+{
+  "triggerType": "stop_loss",
+  "tokenSymbol": "BONK",
+  "error": "Insufficient liquidity for sell",
+  "timestamp": "2026-03-01T00:01:00.000Z"
+}
+```
+
+### prices:update
+
+Live token price updates pushed every 30 seconds. Includes all tokens in the user's wallet.
+
+```json
+{
+  "prices": [
+    {
+      "tokenAddress": "0xAbC123...",
+      "chain": "BASE",
+      "tokenSymbol": "DEGEN",
+      "tokenName": "Degen",
+      "amount": "420.0",
+      "priceUsd": 0.000450,
+      "valueUsd": 0.189
+    }
+  ],
+  "timestamp": "2026-03-01T00:00:30.000Z"
+}
+```
+
+---
+
+## Frontend Integration
+
+### Recommended Pattern
+
+```typescript
+// Connection
+const socket = io(API_URL, { auth: { token } });
+
+// Trade updates
+socket.on('trade:confirmed', (data) => {
+  toast.success(data.message);
+  refreshPortfolio();
+});
+
+socket.on('trade:failed', (data) => {
+  toast.error(data.message);
+});
+
+socket.on('trade:rejected', (data) => {
+  toast.warning(data.message);
+});
+
+// Live prices — update portfolio values in real-time
+socket.on('prices:update', (data) => {
+  updateTokenPrices(data.prices);
+});
+
+// Alerts
+socket.on('alert:low_balance', (data) => {
+  toast.warning(`Low balance on ${data.chain}: $${data.balanceUsd}`);
+});
+```
+
+### React Hooks
+
+The frontend provides custom hooks for WebSocket integration:
+
+| Hook | Purpose |
+|------|---------|
+| `useWebSocket(token)` | Connection lifecycle management |
+| `usePriceUpdates(callback)` | Subscribe to real-time price updates |
+| `useTradeNotifications(callback)` | Subscribe to trade status events |
+| `useAlerts(callback)` | Subscribe to low balance + daily limit alerts |
+
+---
+
+## Event Summary
+
+| Event | Trigger | Premium Only? |
+|-------|---------|--------------|
+| `trade:confirmed` | Trade confirmed on-chain | No |
+| `trade:failed` | Trade failed on-chain | No |
+| `trade:rejected` | Trade blocked by safety checks | No |
+| `trade:pending` | Trade submitted to chain | No |
+| `alert:low_balance` | Wallet below threshold after like-to-buy | Yes |
+| `alert:daily_limit` | Free user hits 5 trades/day | No |
+| `auto-sell:executed` | TP/SL trigger executed | Yes |
+| `auto-sell:failed` | TP/SL trigger failed | Yes |
+| `prices:update` | Every 30 seconds | No |

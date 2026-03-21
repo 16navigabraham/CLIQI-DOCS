@@ -1,0 +1,206 @@
+# Wallet API
+
+## GET /api/wallet
+
+Get all wallets for the authenticated user.
+
+**Auth:** Required
+
+**Response:**
+```json
+{
+  "wallets": [
+    {
+      "id": "clx...",
+      "userId": "clx...",
+      "chain": "SOLANA",
+      "address": "7B5NrSkUQP...",
+      "walletType": "EOA",
+      "isPrimary": true,
+      "isActive": true,
+      "createdAt": "2026-01-01T00:00:00.000Z"
+    }
+  ]
+}
+```
+
+---
+
+## GET /api/wallet/balance
+
+Get real-time balances for all user wallets with USD conversion. Includes native tokens (SOL/ETH) and all token holdings.
+
+**Auth:** Required
+
+**Response:**
+```json
+{
+  "totalUsd": 1234.56,
+  "wallets": [
+    {
+      "walletId": "clx...",
+      "chain": "SOLANA",
+      "address": "7B5NrSkUQP...",
+      "balance": "0.85",
+      "balanceUsd": 102.50,
+      "nativeToken": "SOL",
+      "priceUsd": 120.59
+    },
+    {
+      "walletId": "clx...",
+      "chain": "BASE",
+      "address": "0x4fd76952...",
+      "balance": "0.01",
+      "balanceUsd": 23.00,
+      "nativeToken": "ETH",
+      "priceUsd": 2300.00
+    }
+  ],
+  "tokens": [
+    {
+      "tokenAddress": "DezXAZ9HGe...",
+      "tokenSymbol": "BONK",
+      "tokenName": "Bonk",
+      "amount": "1500000.5",
+      "amountRaw": "15000005000000",
+      "decimals": 5,
+      "chain": "SOLANA",
+      "priceUsd": 0.0001,
+      "valueUsd": 150.00
+    }
+  ],
+  "breakdown": {
+    "nativeUsd": 125.50,
+    "tokensUsd": 1150.60
+  }
+}
+```
+
+---
+
+## GET /api/wallet/deposit
+
+Get deposit addresses and network info for all user wallets.
+
+**Auth:** Required
+
+**Response:**
+```json
+{
+  "depositInfo": [
+    {
+      "chain": "SOLANA",
+      "address": "7B5NrSkUQP...",
+      "nativeToken": "SOL",
+      "network": "Solana Mainnet",
+      "minDeposit": "0.05 SOL"
+    },
+    {
+      "chain": "BASE",
+      "address": "0x4fd76952...",
+      "nativeToken": "ETH",
+      "network": "Base (L2)",
+      "minDeposit": "0.005 ETH"
+    }
+  ]
+}
+```
+
+---
+
+## POST /api/wallet/create
+
+Manually create a wallet (use if auto-creation failed during signup).
+
+**Auth:** Required
+
+**Request Body:**
+```json
+{ "chain": "SOLANA" }
+```
+
+Valid chains: `SOLANA`, `BASE`
+
+**Response:**
+```json
+{
+  "wallet": {
+    "id": "clx...",
+    "chain": "SOLANA",
+    "address": "7B5NrSkUQP...",
+    "isActive": true
+  }
+}
+```
+
+---
+
+## POST /api/wallet/withdraw
+
+Withdraw native tokens (SOL or ETH) to an external wallet address.
+
+**Auth:** Required (+ passkey verification)
+
+**Request Body:**
+```json
+{
+  "chain": "SOLANA",
+  "toAddress": "ExTernALwAlLetAdDrEss...",
+  "amount": 0.1
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| chain | string | Yes | `SOLANA` or `BASE` |
+| toAddress | string | Yes | Destination wallet address |
+| amount | number | Yes | Amount in native units (SOL or ETH) |
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "txHash": "5xYzAbCd...",
+  "chain": "SOLANA",
+  "amount": 0.1,
+  "toAddress": "ExTernALwAlLetAdDrEss..."
+}
+```
+
+**Error Response (400):**
+```json
+{ "error": "Insufficient balance. Have 0.05 SOL, need 0.1 SOL + fee" }
+```
+
+**Explorer Links:**
+- Solana: `https://solscan.io/tx/{txHash}`
+- Base: `https://basescan.org/tx/{txHash}`
+
+---
+
+## GET /api/wallet/tokens
+
+Get all token holdings with live prices. Zero-balance tokens are automatically excluded.
+
+**Auth:** Required
+
+**Response:**
+```json
+{
+  "tokens": [
+    {
+      "chain": "SOLANA",
+      "tokenAddress": "DezXAZ9HGe...",
+      "tokenSymbol": "BONK",
+      "tokenName": "Bonk",
+      "amount": "1500000.5",
+      "amountRaw": "15000005000000",
+      "decimals": 5,
+      "currentPriceUsd": 0.0000125,
+      "currentValueUsd": 18.75
+    }
+  ]
+}
+```
+
+For real-time updates, subscribe to the `prices:update` WebSocket event instead of polling this endpoint.

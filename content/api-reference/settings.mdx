@@ -1,0 +1,99 @@
+# Settings API
+
+## GET /api/settings
+
+Get user settings. Auto-creates defaults if none exist.
+
+**Auth:** Required
+
+**Response:**
+```json
+{
+  "settings": {
+    "solBuyAmount": 0.1,
+    "baseBuyAmount": 0.005,
+    "maxSlippageBps": 500,
+    "dailyLimitUsd": 100,
+    "minLiquidityUsd": 1000,
+    "maxRiskScore": 50,
+    "autoSellEnabled": false,
+    "takeProfitPct": null,
+    "stopLossPct": null,
+    "tgNotificationsEnabled": false,
+    "tgNotifyTradeConfirmed": true,
+    "tgNotifyTradeFailed": true,
+    "tgNotifyTradeRejected": false,
+    "tgNotifyLowBalance": true,
+    "lowBalanceThresholdUsd": 10
+  }
+}
+```
+
+---
+
+## PUT /api/settings
+
+Update user settings. All fields are optional — only provided fields are updated.
+
+**Auth:** Required
+
+### Buy Amount Limits
+
+| Chain | Min | Max | Default |
+|-------|-----|-----|---------|
+| Solana | 0.01 SOL | 100 SOL | 0.1 SOL |
+| Base | 0.001 ETH | 10 ETH | 0.005 ETH |
+
+### Validation Ranges
+
+| Field | Range |
+|-------|-------|
+| solBuyAmount | 0.01 – 100 |
+| baseBuyAmount | 0.001 – 10 |
+| maxSlippageBps | 50 – 5000 |
+| dailyLimitUsd | 1 – 100,000 |
+| minLiquidityUsd | 0 – 1,000,000 |
+| maxRiskScore | 0 – 100 |
+| takeProfitPct | 1 – 10,000 (or null) |
+| stopLossPct | 1 – 100 (or null) |
+| lowBalanceThresholdUsd | 1 – 100,000 |
+
+### Auto-Sell (Premium Only)
+
+Background monitoring checks portfolio every 30 seconds:
+
+- **Take Profit:** `takeProfitPct` — percentage gain from buy price to trigger sell
+  - `50` = sell when up 50%, `100` = sell at 2x, `10000` = sell at 100x
+  - Formula: `sellPrice = buyPrice * (1 + takeProfitPct / 100)`
+
+- **Stop Loss:** `stopLossPct` — percentage drop from buy price to trigger sell
+  - `20` = sell when down 20%, `50` = sell at half value
+  - Formula: `sellPrice = buyPrice * (1 - stopLossPct / 100)`
+
+Set to `null` to disable either trigger. Free users can configure but auto-execution is disabled.
+
+---
+
+## POST /api/settings/pause
+
+Pause the like-to-buy agent. Stops X like monitoring.
+
+**Auth:** Required
+
+**Response:**
+```json
+{ "paused": true }
+```
+
+---
+
+## POST /api/settings/resume
+
+Resume the like-to-buy agent. Restarts X like monitoring.
+
+**Auth:** Required
+
+**Response:**
+```json
+{ "paused": false, "pollingStarted": true }
+```

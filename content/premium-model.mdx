@@ -1,0 +1,61 @@
+# Premium Model
+
+## Pricing
+
+- **Cost:** $25/month
+- **Payment:** CLIQI token on Base
+- **Token address:** `0x075b111329bd8fb54c6e2c1aa6d742a435ad7ba3`
+- **Duration:** 30 days from payment confirmation
+
+---
+
+## Feature Comparison
+
+| Feature | Free | Premium |
+|---------|------|---------|
+| Like-to-buy | 5 trades/day | Unlimited |
+| Platform fee | 1% (100 bps) | 0.5% (50 bps) |
+| X polling speed | 8s intervals | 5s intervals |
+| Auto-sell (TP/SL) | Not available | Every 30 seconds |
+| Telegram notifications | Not available | All trade events |
+| API rate limits | Standard | 2-4x higher |
+| Inactivity timeout | 48 hours | 7 days |
+
+---
+
+## Payment Flow
+
+1. User selects payment chain (Base or Solana) in the dashboard
+2. Backend fetches current CLIQI token price
+3. Calculates required token amount ($25 / CLIQI price)
+4. User confirms the payment
+5. Backend transfers CLIQI tokens from user's wallet to treasury
+6. On-chain confirmation received
+7. `isPremium = true`, `premiumUntil = now + 30 days`
+8. `PremiumPayment` record created for audit trail
+
+---
+
+## Premium Expiration
+
+A background job checks every hour for expired subscriptions:
+
+1. Finds users where `isPremium = true` AND `premiumUntil < now()`
+2. Sets `isPremium = false`
+3. Sends Telegram notification: "Your premium subscription has expired"
+4. Auto-sell monitoring stops automatically
+5. Polling speed reverts to 8s
+6. Rate limits revert to free tier
+7. Platform fee reverts to 1%
+
+---
+
+## Rate Limit Tiers
+
+| Limiter | Free (per minute) | Premium (per minute) |
+|---------|-------------------|---------------------|
+| General API | 30 | 120 |
+| Trade (buy/sell/swap) | 5 | 20 |
+| Heavy reads (portfolio, balances) | 10 | 30 |
+| Quotes | 20 | 60 |
+| Settings/wallet writes | 10 | 30 |

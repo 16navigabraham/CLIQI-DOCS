@@ -1,0 +1,233 @@
+# Trades API
+
+## GET /api/trades
+
+List user's trade history with pagination and optional filtering.
+
+**Auth:** Required
+
+**Query Params:**
+
+| Param | Default | Description |
+|-------|---------|-------------|
+| page | 1 | Page number |
+| limit | 20 | Results per page |
+| action | BUY | Filter: `BUY`, `SELL`, or `ALL` |
+| chain | — | Filter: `SOLANA` or `BASE` |
+| status | — | Filter: `PENDING`, `CONFIRMED`, `FAILED`, `REJECTED` |
+| timeFilter | — | Filter: `today`, `yesterday`, `week`, `month` |
+| month | — | Month name (when `timeFilter=month`): `january`, `february`, etc. |
+| year | current | Year (optional, with `timeFilter=month`) |
+
+**Response:**
+```json
+{
+  "trades": [
+    {
+      "id": "clx...",
+      "chain": "BASE",
+      "action": "BUY",
+      "txStatus": "CONFIRMED",
+      "tokenAddress": "0xAbC123...",
+      "tokenSymbol": "DEGEN",
+      "amountIn": "0.005",
+      "amountInUsd": 12.50,
+      "amountOut": "42000",
+      "amountOutUsd": 12.30,
+      "pricePerToken": 0.000293,
+      "platformFee": 0.000025,
+      "txHash": "0x5abc...",
+      "tweetAuthor": "baseddev",
+      "tweetUrl": "https://x.com/baseddev/status/123...",
+      "riskScore": 35,
+      "createdAt": "2026-01-01T00:00:00.000Z",
+      "buyPriceUsd": 0.000298
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 42,
+    "pages": 3
+  }
+}
+```
+
+### P&L Fields (enriched per trade)
+
+| Field | On | Description |
+|-------|----|-------------|
+| `buyPriceUsd` | BUY | Price per token at time of buy |
+| `avgBuyPriceUsd` | SELL | Weighted average buy price across all buys of this token |
+| `sellPriceUsd` | SELL | Price per token at time of sell |
+| `pnlUsd` | SELL | Realized profit/loss in USD |
+| `pnlPercent` | SELL | Realized P&L as percentage |
+
+---
+
+## GET /api/trades/portfolio
+
+Get all token positions (open and closed) with P&L and on-chain reconciliation.
+
+**Auth:** Required
+
+**On-chain reconciliation:** Verifies actual on-chain balances via Alchemy (EVM) or Solana RPC. If on-chain balance is 0, position is marked closed regardless of trade record math.
+
+**Response:**
+```json
+{
+  "portfolio": [
+    {
+      "chain": "BASE",
+      "tokenAddress": "0xAbC123...",
+      "tokenSymbol": "DEGEN",
+      "tokenName": "Degen",
+      "status": "open",
+      "amountHeld": 42000,
+      "amountBought": 42000,
+      "amountSold": 0,
+      "costUsd": 12.50,
+      "buyPriceUsd": 0.000298,
+      "currentPriceUsd": 0.000450,
+      "currentValueUsd": 18.90,
+      "realizedPnlUsd": 0,
+      "unrealizedPnlUsd": 6.40,
+      "totalPnlUsd": 6.40,
+      "totalPnlPercent": 51.20,
+      "firstBuyAt": "2026-01-01T00:00:00.000Z",
+      "lastActivityAt": "2026-01-01T00:00:00.000Z",
+      "tweetUrl": "https://x.com/baseddev/status/123...",
+      "tweetAuthor": "baseddev",
+      "trades": []
+    }
+  ],
+  "summary": {
+    "totalPositions": 5,
+    "openPositions": 2,
+    "closedPositions": 3,
+    "totalCostUsd": 37.50,
+    "totalValueUsd": 52.10,
+    "realizedPnlUsd": -2.10,
+    "unrealizedPnlUsd": 6.40,
+    "totalPnlUsd": 4.30,
+    "totalPnlPercent": 11.47
+  }
+}
+```
+
+---
+
+## GET /api/trades/stats
+
+Get trading performance statistics (BUY trades only).
+
+**Auth:** Required
+
+**Response:**
+```json
+{
+  "totalTrades": 42,
+  "confirmedTrades": 38,
+  "failedTrades": 3,
+  "todayTrades": 5,
+  "totalSpentUsd": 420.00,
+  "successRate": "90.5%"
+}
+```
+
+---
+
+## GET /api/trades/:id
+
+Get details of a single trade.
+
+**Auth:** Required
+
+Returns full trade object including P&L fields for SELL trades. Returns `404` if trade not found or doesn't belong to user.
+
+---
+
+## GET /api/trades/public/:id
+
+Get a trade for public sharing (shareable trade cards).
+
+**Auth:** None
+
+Returns limited trade data for OG image generation and share pages.
+
+---
+
+## POST /api/trades/buy
+
+Buy a token directly via contract address (manual buy).
+
+**Auth:** Required
+
+**Request Body:**
+```json
+{
+  "tokenAddress": "DezXAZ9HGe...",
+  "chain": "SOLANA",
+  "amountIn": "0.1",
+  "slippageBps": 500
+}
+```
+
+**Validation checks:** Token exists, not a honeypot, sufficient balance, daily limit not exceeded, account not paused.
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "tradeId": "clx...",
+  "txHash": "5xYzAbCd...",
+  "explorerUrl": "https://solscan.io/tx/5xYzAbCd...",
+  "amountOut": "1234567.89",
+  "tokenSymbol": "BONK"
+}
+```
+
+---
+
+## POST /api/trades/sell
+
+Sell a token back to native currency (SOL or ETH).
+
+**Auth:** Required
+
+**Request Body:**
+```json
+{
+  "tokenAddress": "DezXAZ9HGe...",
+  "chain": "SOLANA",
+  "amountRaw": "15000005000000",
+  "sellAll": false
+}
+```
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| tokenAddress | Yes | Token contract address |
+| chain | Yes | `SOLANA` or `BASE` |
+| amountRaw | If !sellAll | Amount in raw token units |
+| sellAll | If !amountRaw | Sell entire balance |
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "tradeId": "clx...",
+  "txHash": "5xYzAbCd...",
+  "explorerUrl": "https://solscan.io/tx/5xYzAbCd..."
+}
+```
+
+---
+
+## POST /api/trades/quote
+
+Get a swap quote without executing.
+
+**Auth:** Required
+
+Returns the best price from multi-aggregator race with 15-second cache.

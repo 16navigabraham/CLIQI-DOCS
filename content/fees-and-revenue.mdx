@@ -1,0 +1,99 @@
+# Fees & Revenue
+
+## Platform Fee Structure
+
+Every trade on CLIQI incurs a platform fee, automatically deducted during the swap:
+
+| User Tier | Fee Rate | Basis Points |
+|-----------|----------|-------------|
+| Free | 1% per trade | 100 bps |
+| Premium ($25/mo) | 0.5% per trade | 50 bps |
+
+---
+
+## Fee Collection by Chain
+
+### Solana
+
+Fees are collected natively via Jupiter's `platformFeeBps` parameter:
+
+1. Fee percentage passed directly to Jupiter swap API
+2. Jupiter automatically splits the output: user receives trade amount, treasury receives fee
+3. No separate transaction needed — fee is atomic with the swap
+4. Treasury wallet: configured via `TREASURY_WALLET_SOLANA` env var
+
+### Base — ETH Mode
+
+Fees are deducted from the input amount before the swap:
+
+1. Calculate fee: `fee = amountIn * feeRate`
+2. Reduce swap amount: `swapAmount = amountIn - fee`
+3. Execute swap with reduced amount
+4. After successful swap, transfer fee to treasury in a separate transaction
+5. Treasury wallet: configured via `TREASURY_WALLET_BASE` env var
+
+### Base — USDC Gasless Mode
+
+Fees are handled through the 0x affiliate fee mechanism:
+
+1. 0x Gasless API accepts an affiliate fee parameter
+2. Fee deducted from USDC input pre-swap
+3. Treasury receives USDC directly — no gas needed for fee transfer
+4. User doesn't need ETH at all (gas is sponsored by 0x)
+
+### Base — Sell Trades
+
+Fees are collected from the swap output:
+
+1. Swap executes: tokens → ETH/USDC
+2. Calculate fee from output received
+3. Transfer fee to treasury wallet
+4. User receives output minus fee
+
+---
+
+## Fee Tracking
+
+Every trade record includes a `platformFee` field:
+
+```json
+{
+  "id": "clx...",
+  "action": "BUY",
+  "amountIn": "0.01",
+  "amountOut": "42000",
+  "platformFee": 0.0001,
+  "chain": "BASE"
+}
+```
+
+The admin dashboard aggregates fee revenue in USD using the formula:
+
+```sql
+SUM((platform_fee / amount_in) * amount_in_usd)
+```
+
+This converts chain-native fee amounts (SOL, ETH) to USD for unified reporting.
+
+---
+
+## Treasury Wallets
+
+| Chain | Env Variable | Receives |
+|-------|-------------|----------|
+| Solana | `TREASURY_WALLET_SOLANA` | SOL fees from Jupiter swaps |
+| Base | `TREASURY_WALLET_BASE` | ETH fees from buys, USDC from gasless |
+
+A separate private key (`TREASURY_WALLET_BASE_PRIVATE_KEY`) is used to sponsor gas for USDC sell transactions on Base.
+
+---
+
+## Revenue Dashboard
+
+The admin endpoint (`GET /api/admin/stats`) provides real-time revenue metrics:
+
+- **Trading fees (USD):** Total and per-chain breakdown
+- **Premium revenue (USD):** Total subscriptions, per-chain payment breakdown
+- **Time range filtering:** Today, week, month, all, or custom date range
+
+All values are normalized to USD for consistent reporting regardless of the chain's native currency.

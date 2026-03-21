@@ -1,0 +1,132 @@
+# Security
+
+## Security Audit Summary (Feb 2026)
+
+- **Grade:** A-
+- **Known issues:** `/health/jobs` public (info leak), Solana linear retry (not exponential)
+- **Strengths:** Zod validation, multi-layer rate limiting, encrypted secrets, strong CSP
+
+---
+
+## Backend Security Layers
+
+| Layer | Implementation |
+|-------|---------------|
+| HTTPS enforcement | `https-enforcer.js` middleware — redirects HTTP to HTTPS in production |
+| Security headers | Helmet (HSTS, X-Frame-Options, CSP, X-Content-Type-Options) |
+| CORS | Whitelist-only origins (specific domains, no wildcards) |
+| Rate limiting | 8-tier sliding window (user-aware, premium boost) |
+| Input validation | Zod schemas on all endpoints — rejects malformed input |
+| Scanner shield | Auto-block probe requests (.env, .php, .git, wp-admin, etc.) |
+| JWT auth | HS256, 7-day expiry, verified on every protected route |
+| Privy re-auth | Fresh Privy token required for wallet export |
+| Passkeys | WebAuthn for withdrawals and key export |
+| Wallet encryption | AES-256-GCM for locally stored private keys |
+| Wallet export | HPKE (DHKEM\_P256 + HKDF\_SHA256 + CHACHA20\_POLY1305) |
+| Error alerts | Admin Telegram DM on all critical errors (rate-limited: 1/min per type) |
+| Global error handler | Express catch-all middleware — prevents unhandled errors from crashing |
+
+---
+
+## Frontend Security
+
+| Layer | Implementation |
+|-------|---------------|
+| CSP | Strict Content-Security-Policy (whitelisted sources only) |
+| XSS prevention | `sanitizeObject()` on all API payloads |
+| SQL injection block | Pattern blacklist (SELECT, DROP, UNION, etc.) |
+| Client rate limit | 30 req/min (axios interceptor) |
+| Scheme blocking | Blocks javascript:, data:, vbscript:, file: URLs |
+| Auth guard | Dashboard layout-level token check — redirects unauthenticated users |
+
+---
+
+## Token Safety System
+
+Before any trade executes, the token undergoes safety checks:
+
+### GoPlusLabs (Base / EVM tokens)
+
+- Honeypot detection (can the token be sold?)
+- Owner privilege analysis (can owner mint, pause, or blacklist?)
+- Buy/sell tax percentages
+- Proxy contract detection
+- Open-source verification
+
+### RugCheck (Solana tokens)
+
+- Mint authority check (can new tokens be minted?)
+- Freeze authority check (can accounts be frozen?)
+- Top holder concentration analysis
+- Liquidity pool lock verification
+
+### Risk Scoring
+
+- Combined score: **0** (safe) to **100** (dangerous)
+- Users configure their `maxRiskScore` threshold (default: 50)
+- Tokens above the threshold are automatically blocked
+- **Honeypots are always blocked** regardless of risk score
+
+---
+
+## Rate Limiting Architecture
+
+8-tier sliding window rate limiter using Upstash Redis:
+
+| Tier | Window | Free Limit | Premium Limit | Applies To |
+|------|--------|-----------|--------------|-----------|
+| apiLimiter | 60s | 30 | 120 | General API routes |
+| authLimiter | 60s | 10 | 10 | Auth endpoints |
+| privyAuthLimiter | 60s | 10 | 10 | Privy login |
+| oauthConnectLimiter | 60s | 5 | 5 | X OAuth flow |
+| writeLimiter | 60s | 10 | 30 | Settings, wallet operations |
+| tradeLimiter | 60s | 5 | 20 | Buy/sell/swap trades |
+| heavyReadLimiter | 60s | 10 | 30 | Portfolio, balances |
+| quoteLimiter | 60s | 20 | 60 | Swap quotes |
+
+Rate limits are user-aware — authenticated users get their own counter, unauthenticated requests share a global counter.
+
+---
+
+## Wallet Security
+
+### Privy Server Wallets
+
+- Private keys managed by Privy infrastructure
+- Backend signs transactions via Privy API (keys never touch our servers)
+- Authorization key required for wallet operations
+- `wallet-auth:XXXXX` format, set via `PRIVY_AUTHORIZATION_PRIVATE_KEY`
+
+### Local Encrypted Keys
+
+- Some wallets have locally encrypted private keys (legacy)
+- Encrypted with AES-256-GCM using `ENCRYPTION_KEY` env var
+- Key is 64-character hex string (256 bits)
+
+### Key Export (HPKE)
+
+When users export their private key:
+1. Privy re-auth or passkey verification required
+2. Key encrypted using HPKE (Hybrid Public Key Encryption)
+3. Cipher suite: DHKEM\_P256 + HKDF\_SHA256 + CHACHA20\_POLY1305
+4. Encrypted payload sent to frontend
+5. Frontend decrypts using the session key pair
+6. Key displayed once, never stored on frontend
+
+---
+
+## Error Notification System
+
+Critical errors are automatically forwarded to the admin via Telegram DM:
+
+### Covered Paths
+- Trade execution failures (buy, sell, swap)
+- Background job crashes (SafeInterval catch)
+- Wallet operation errors (withdrawals)
+- Auto-sell trigger failures
+- Unhandled route errors (global error handler)
+
+### Rate Limiting
+- 1 notification per minute per error type
+- Prevents notification flood during cascading failures
+- Error type derived from context string (e.g., `executeTrade`, `autoSellMonitor`)

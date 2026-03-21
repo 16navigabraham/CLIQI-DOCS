@@ -1,0 +1,116 @@
+# Auth API
+
+## GET /api/auth/x/connect
+
+Start X (Twitter) OAuth 2.0 PKCE sign-in/sign-up flow.
+
+**Auth:** None
+
+**Response:**
+```json
+{
+  "url": "https://twitter.com/i/oauth2/authorize?..."
+}
+```
+
+Redirect the user to the returned `url`. After authorization, X redirects to your callback.
+
+---
+
+## GET /api/auth/x/callback
+
+OAuth callback handler. Creates a new account (with auto-generated Base + Solana wallets and default settings) or signs in an existing user.
+
+**Auth:** None
+**Query Params:** `state`, `code` (set by X OAuth redirect)
+
+**Response:** `302 Redirect` to `{FRONTEND_URL}/auth/callback?token={jwt}`
+
+---
+
+## POST /api/auth/privy/login
+
+Authenticate via Privy access token. Creates account if new user.
+
+**Auth:** None (Privy token in body)
+
+---
+
+## GET /api/auth/me
+
+Get authenticated user profile with wallets and settings.
+
+**Auth:** Required
+
+**Response:**
+```json
+{
+  "user": {
+    "id": "clx...",
+    "xUserId": "123456",
+    "xUsername": "alice",
+    "xDisplayName": "Alice",
+    "xConnected": true,
+    "isActive": true,
+    "isPaused": false,
+    "wallets": [
+      {
+        "id": "clx...",
+        "chain": "SOLANA",
+        "address": "7B5NrSkUQP...",
+        "isActive": true
+      }
+    ],
+    "settings": { "..." }
+  }
+}
+```
+
+---
+
+## POST /api/auth/logout
+
+Logout the current user.
+
+**Auth:** Required
+
+**Response:**
+```json
+{ "message": "Logged out successfully" }
+```
+
+---
+
+## POST /api/auth/connect/telegram
+
+Link a Telegram account for trade notifications. Returns a 6-character connect code.
+
+**Auth:** Required
+
+**Request Body:**
+```json
+{ "telegramUsername": "alice_tg" }
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "connectCode": "A1B2C3",
+  "botUrl": "https://t.me/CliqiBot",
+  "instructions": "Open the bot and send: /connect A1B2C3"
+}
+```
+
+---
+
+## DELETE /api/auth/account
+
+Permanently delete the user account and all associated data (wallets, trades, settings).
+
+**Auth:** Required
+
+**Response:**
+```json
+{ "success": true, "message": "Account deleted successfully" }
+```

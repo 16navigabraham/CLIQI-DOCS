@@ -1,0 +1,84 @@
+# Background Jobs
+
+All background jobs use the **SafeInterval** pattern — a crash-resilient wrapper around `setInterval` that prevents overlapping executions, catches errors, and sends admin alerts via Telegram.
+
+## SafeInterval Features
+
+- **Crash-resilient:** If a job throws, the error is caught and logged — the interval continues
+- **Overlap-safe:** If a previous run hasn't finished, the next one is skipped
+- **Admin alerts:** All errors automatically sent to admin Telegram DM (rate-limited: 1/min per error type)
+- **Idle-aware:** Jobs gate on `activityGate.isActive()` to skip when no users are connected (server sleep mode)
+
+---
+
+## Job Schedule
+
+| Job | Interval | Purpose |
+|-----|----------|---------|
+| **pricePush** | 30s | Broadcast live token prices to connected WebSocket clients |
+| **stuckTrades** | 5m | Resolve PENDING/SUBMITTED trades stuck > 10 min via on-chain check |
+| **premiumExpiration** | 1h | Downgrade expired premium users, send Telegram notification |
+| **escrowRefund** | 24h | Refund expired escrow tips (30-day claim window) |
+| **autoSell** | 30s | Check TP/SL triggers on premium users' portfolio holdings |
+| **queueStats** | 1m | Log trade queue metrics when queue is non-empty |
+
+---
+
+## Job Details
+
+### Price Push (30s)
+
+For each connected WebSocket user:
+1. Fetch their wallet token holdings (Alchemy for Base, RPC for Solana)
+2. Get live prices from DEXScreener
+3. Push `prices:update` event with all token prices + values
+4. Skips users with no active WebSocket connection
+
+### Stuck Trade Resolver (5m)
+
+Catches trades that fell through the cracks:
+1. Query database for trades in `PENDING` or `SUBMITTED` status > 10 minutes old
+2. For each stuck trade:
+   - **Solana:** Query transaction status via RPC `getTransaction()`
+   - **Base:** Query transaction receipt via `provider.getTransactionReceipt()`
+3. Update trade status to `CONFIRMED` or `FAILED` based on on-chain result
+4. Notify user via WebSocket if status changed
+
+### Premium Expiration (1h)
+
+Downgrades users whose premium subscription has expired:
+1. Find users where `isPremium = true` AND `premiumUntil < now()`
+2. Set `isPremium = false`
+3. Send Telegram notification: "Your premium has expired"
+4. Auto-sell monitoring stops for these users on next cycle
+
+### Auto-Sell Monitor (30s) — Premium Only
+
+Monitors portfolio positions against take-profit and stop-loss thresholds:
+1. Find all premium users with `autoSellEnabled = true`
+2. For each user, get their open portfolio positions
+3. Fetch current token prices
+4. Check each position:
+   - **Take profit:** Current price `>=` buy price `*` (1 + takeProfitPct / 100)
+   - **Stop loss:** Current price `<=` buy price `*` (1 - stopLossPct / 100)
+5. If triggered, execute a sell-all trade via the trade orchestrator
+6. Send `auto-sell:executed` or `auto-sell:failed` WebSocket event
+
+### Queue Stats (1m)
+
+Logs trade queue health metrics when the queue is not empty:
+- Current queue length
+- Active (executing) trade count
+- Pending trade count
+- Average wait time
+
+---
+
+## Activity Gate (Server Sleep Mode)
+
+To conserve resources on the 512 MB Render instance:
+
+- `activityGate.isActive()` returns `true` only when at least one WebSocket client is connected
+- When no users are connected, all background jobs skip their execution
+- The server effectively "sleeps" until a user connects
+- This prevents unnecessary API calls, RPC queries, and database load during idle periods

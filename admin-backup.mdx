@@ -1,0 +1,138 @@
+# Admin API
+
+Internal endpoints for monitoring platform health. Not exposed to end users.
+
+**Authentication:** All admin endpoints require `Authorization: Bearer ADMIN_SECRET` header.
+
+---
+
+## GET /api/admin/stats
+
+Returns platform-wide metrics with time range filtering. Cached for 60 seconds per range.
+
+**Auth:** `Authorization: Bearer ADMIN_SECRET`
+
+**Query Params:**
+
+| Param | Default | Description |
+|-------|---------|-------------|
+| range | `month` | `today`, `week`, `month`, or `all` |
+| from | — | Custom start: ISO datetime (overrides `range`) |
+| to | — | Custom end: ISO datetime (overrides `range`) |
+
+**Examples:**
+```
+GET /api/admin/stats                          # Default: last 30 days
+GET /api/admin/stats?range=today              # Today only
+GET /api/admin/stats?range=all                # All time
+GET /api/admin/stats?from=2026-03-01T00:00:00Z&to=2026-03-19T00:00:00Z  # Custom
+```
+
+**Response:**
+```json
+{
+  "generatedAt": "2026-03-19T12:00:00.000Z",
+  "range": {
+    "label": "month",
+    "from": "2026-02-19T00:00:00.000Z",
+    "to": "2026-03-19T12:00:00.000Z"
+  },
+  "users": {
+    "total": 100,
+    "premium": 5,
+    "free": 95,
+    "newInRange": 12,
+    "growthChart": [
+      { "day": "2026-03-19", "signups": 3 },
+      { "day": "2026-03-18", "signups": 5 },
+      { "day": "2026-03-17", "signups": 1 }
+    ],
+    "recentSignups": [
+      { "xUsername": "alice", "isPremium": true, "createdAt": "2026-03-19T10:30:00.000Z" }
+    ],
+    "activePremium": [
+      { "xUsername": "alice", "premiumUntil": "2026-04-19T00:00:00.000Z" }
+    ]
+  },
+  "trades": {
+    "total": 65,
+    "buys": 50,
+    "sells": 10,
+    "successRate": 92.3,
+    "failureRate": 7.7,
+    "byStatus": {
+      "CONFIRMED": 60,
+      "FAILED": 5
+    },
+    "byChain": {
+      "BASE": {
+        "total": 45,
+        "confirmed": 40,
+        "buys": 30,
+        "sells": 10,
+        "volumeUsd": "2300.00"
+      },
+      "SOLANA": {
+        "total": 20,
+        "confirmed": 20,
+        "buys": 20,
+        "sells": 0,
+        "volumeUsd": "1000.00"
+      }
+    }
+  },
+  "volume": {
+    "totalUsd": "3300.00",
+    "byChain": {
+      "BASE": "2300.00",
+      "SOLANA": "1000.00"
+    }
+  },
+  "revenue": {
+    "tradingFees": {
+      "totalUsd": "33.00",
+      "byChain": {
+        "BASE": "23.00",
+        "SOLANA": "10.00"
+      }
+    },
+    "premium": {
+      "totalUsd": "75.00",
+      "subscriptions": 3,
+      "byChain": {
+        "BASE": { "count": 2, "usd": "50.00" },
+        "SOLANA": { "count": 1, "usd": "25.00" }
+      }
+    }
+  },
+  "topTokens": {
+    "byTradeCount": [
+      { "tokenAddress": "0xAbC...", "tokenSymbol": "DEGEN", "chain": "BASE", "count": 15 }
+    ],
+    "byVolume": [
+      { "tokenAddress": "0xAbC...", "tokenSymbol": "DEGEN", "chain": "BASE", "volumeUsd": "500.00" }
+    ]
+  }
+}
+```
+
+### Response Fields
+
+| Section | Description |
+|---------|-------------|
+| `range` | Active time range with resolved dates |
+| `users` | Total, premium, free, new in range, 7-day growth chart |
+| `trades` | Totals, buy/sell split, success/failure rates, chain breakdown |
+| `volume` | Total USD volume and per-chain breakdown |
+| `revenue.tradingFees` | Platform fee revenue in USD (computed from `platformFee` field) |
+| `revenue.premium` | Subscription revenue in USD with per-chain breakdown |
+| `topTokens` | Top 10 tokens by trade count and by USD volume |
+
+### Error Responses
+
+| Status | Meaning |
+|--------|---------|
+| 400 | Invalid query params (bad range value or date format) |
+| 401 | Missing or incorrect `ADMIN_SECRET` |
+| 503 | `ADMIN_SECRET` env var not configured on server |
+| 500 | Database query failed |

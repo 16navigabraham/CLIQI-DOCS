@@ -1,0 +1,154 @@
+# Swap Infrastructure
+
+## Multi-Aggregator Architecture
+
+CLIQI doesn't rely on a single DEX — it races multiple aggregators in parallel and picks the best price for every trade.
+
+```
+                    ┌─────────────────┐
+                    │  quote-engine   │  Races all aggregators in parallel
+                    │  (15s cache)    │  Returns best amountOut
+                    └────────┬────────┘
+                             │
+              ┌──────────────┼──────────────┐
+              ▼              ▼              ▼
+        ┌──────────┐  ┌──────────┐  ┌──────────┐
+        │   0x     │  │  Odos    │  │ KyberSwap│    Base (EVM)
+        │ +Gasless │  │          │  │          │
+        └──────────┘  └──────────┘  └──────────┘
+
+        ┌──────────┐  ┌──────────┐
+        │ Jupiter  │  │ PumpFun  │                   Solana
+        └──────────┘  └──────────┘
+```
+
+---
+
+## Base (EVM) Aggregators
+
+### 0x API
+- General-purpose swap aggregator
+- Supports ETH and ERC-20 token swaps
+- Used for standard buy/sell operations
+
+### 0x Gasless API
+- Gas-sponsored swaps for USDC trading
+- Users trade on Base **without holding ETH**
+- Gas fees are covered by the protocol
+- Only available for USDC-denominated trades
+
+### KyberSwap
+- Alternative aggregator for competitive pricing
+- Races against 0x and Odos for best rate
+
+### Odos
+- Multi-path routing aggregator
+- Often finds better rates for larger trades
+- Supports complex swap routes
+
+---
+
+## Solana Aggregators
+
+### Jupiter
+- Primary aggregator for all Solana swaps
+- Native `platformFeeBps` parameter for fee collection
+- Supports versioned transactions
+
+### PumpPortal (Pump.fun)
+- Specialized for Pump.fun token swaps
+- Higher slippage minimums (15% buy, 20% sell)
+- Used when token is detected as a Pump.fun token
+
+---
+
+## Quote Engine
+
+The quote engine (`aggregators/quote-engine.js`) coordinates the multi-aggregator race:
+
+1. **Parallel requests** — All relevant aggregators are queried simultaneously
+2. **First valid response wins** — The aggregator returning the highest `amountOut` is selected
+3. **15-second cache** — Identical quote requests within 15s return cached results
+4. **Fallback** — If all aggregators fail, the trade is rejected with an error
+
+### Quote Flow
+
+```
+User requests trade
+       │
+       ▼
+┌─────────────┐
+│ Check cache  │──── Cache hit? ──── Return cached quote
+│ (15s TTL)    │
+└──────┬──────┘
+       │ Cache miss
+       ▼
+┌─────────────┐
+│ Race all     │
+│ aggregators  │──── All fail? ──── Return error
+│ in parallel  │
+└──────┬──────┘
+       │ Best result
+       ▼
+┌─────────────┐
+│ Cache result │
+│ Return quote │
+└─────────────┘
+```
+
+---
+
+## Slippage Overrides
+
+Slippage is enforced at minimum levels to protect users from front-running and MEV attacks:
+
+| Swap Type | Minimum Slippage | Reason |
+|-----------|-----------------|--------|
+| EVM buys | 2% (200 bps) | Standard protection |
+| EVM sells | 15% (1500 bps) | Meme tokens have volatile sell-side liquidity |
+| Pump.fun buys | 15% (1500 bps) | Pump.fun bonding curves have high price impact |
+| Pump.fun sells | 20% (2000 bps) | Selling Pump.fun tokens requires extra buffer |
+| Default (new users) | 15% (1500 bps) | Safe default for new signups |
+
+Users can set higher slippage in their settings, but the system enforces these minimums.
+
+---
+
+## USDC Gasless Mode (Base)
+
+Users can trade with USDC on Base without holding any ETH for gas:
+
+1. User selects USDC trading mode in settings
+2. Buy amount is denominated in USD (e.g., $5 USDC)
+3. 0x Gasless API sponsors the gas transaction
+4. Platform fee deducted from USDC input pre-swap
+5. Treasury receives USDC fee directly
+
+**Benefits:**
+- No need to bridge ETH to Base
+- Lower barrier to entry for new users
+- Fee collection in stablecoins (predictable revenue)
+
+---
+
+## Token Safety Checks
+
+Before any swap executes, the token is screened:
+
+### GoPlusLabs (EVM)
+- Honeypot detection (can the token be sold?)
+- Owner privileges (can owner mint/pause?)
+- Tax analysis (buy/sell tax percentages)
+- Proxy contract detection
+
+### RugCheck (Solana)
+- Mint authority check
+- Freeze authority check
+- Top holder concentration
+- Liquidity pool analysis
+
+### Risk Score
+- Combined score from 0 (safe) to 100 (dangerous)
+- Users set their `maxRiskScore` threshold in settings
+- Tokens above the threshold are automatically blocked
+- Honeypots are **always** blocked regardless of score
