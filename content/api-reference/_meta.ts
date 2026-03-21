@@ -6,4 +6,5 @@ export default {
   'settings': 'Settings',
   'premium': 'Premium',
   'websocket': 'WebSocket Events',
+  'admin': 'Admin',
 }

@@ -41,6 +41,10 @@ export const metadata: Metadata = {
     description: 'Technical documentation for CLIQI — Like It. Buy It.',
     creator: '@cliqibot',
   },
+  icons: {
+    icon: '/icon1.png',
+    apple: '/icon1.png',
+  },
 }
 
 export default async function RootLayout({
@@ -61,11 +65,15 @@ export default async function RootLayout({
         <Layout
           pageMap={pageMap}
           docsRepositoryBase="https://github.com/AbrahamNAVIG1/CLIQI-DOCS/tree/main/content"
-          darkMode
           nextThemes={{ defaultTheme: 'dark' }}
           navbar={
             <Navbar
-              logo={<span style={{ fontFamily: 'Outfit', fontWeight: 700, fontSize: '1.25rem' }}>CLIQI Docs</span>}
+              logo={
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <img src="/icon1.png" alt="CLIQI" width={28} height={28} style={{ borderRadius: '6px' }} />
+                  <span style={{ fontFamily: 'Outfit', fontWeight: 700, fontSize: '1.25rem' }}>CLIQI Docs</span>
+                </span>
+              }
               projectLink="https://github.com/AbrahamNAVIG1/CLIQI-SERVER"
             />
           }
@@ -80,7 +88,7 @@ export default async function RootLayout({
               </span>
             </Footer>
           }
-          feedback={false as any}
+          feedback={{ content: null }}
           editLink={null}
         >
           {children}
