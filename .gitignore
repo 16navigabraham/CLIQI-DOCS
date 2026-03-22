@@ -7,3 +7,4 @@ npm-debug.log*
 .DS_Store
 public/_pagefind/
 out/
+.vercel/
