@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Outfit, DM_Sans, JetBrains_Mono } from 'next/font/google'
 import { Layout, Navbar, Footer } from 'nextra-theme-docs'
 import { getPageMap } from 'nextra/page-map'
+import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
 const outfit = Outfit({
@@ -93,6 +94,7 @@ export default async function RootLayout({
         >
           {children}
         </Layout>
+        <Analytics />
       </body>
     </html>
   )
