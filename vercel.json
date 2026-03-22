@@ -1,4 +1,5 @@
 {
+  "buildCommand": "next build && pagefind --site .next/server/app --output-path public/_pagefind",
   "headers": [
     {
       "source": "/_pagefind/(.*)",
