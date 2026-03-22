@@ -20,7 +20,6 @@
 | Scanner shield | Auto-block probe requests (.env, .php, .git, wp-admin, etc.) |
 | JWT auth | HS256, 7-day expiry, verified on every protected route |
 | Privy re-auth | Fresh Privy token required for wallet export |
-| Passkeys | WebAuthn for withdrawals and key export |
 | Wallet encryption | AES-256-GCM for locally stored private keys |
 | Wallet export | HPKE (DHKEM\_P256 + HKDF\_SHA256 + CHACHA20\_POLY1305) |
 | Error alerts | Admin Telegram DM on all critical errors (rate-limited: 1/min per type) |
@@ -106,7 +105,7 @@ Rate limits are user-aware — authenticated users get their own counter, unauth
 ### Key Export (HPKE)
 
 When users export their private key:
-1. Privy re-auth or passkey verification required
+1. Privy re-auth required
 2. Key encrypted using HPKE (Hybrid Public Key Encryption)
 3. Cipher suite: DHKEM\_P256 + HKDF\_SHA256 + CHACHA20\_POLY1305
 4. Encrypted payload sent to frontend

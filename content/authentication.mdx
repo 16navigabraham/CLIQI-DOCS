@@ -29,7 +29,6 @@
 |--------|---------|
 | X (Twitter) OAuth | Primary signup/login — connects X account for like monitoring |
 | Email | Account recovery path |
-| Passkey (WebAuthn) | Sensitive operation verification (withdrawals, key export) |
 | Privy re-auth | Fresh token required for wallet export |
 
 ---
@@ -42,32 +41,6 @@
 - **Stored:** Frontend localStorage
 - **Sent:** `Authorization: Bearer <token>` header on every request
 - **Validation:** `authMiddleware` verifies JWT signature and extracts `req.user`
-
----
-
-## Passkey (WebAuthn)
-
-Passkeys add a second factor for sensitive operations without requiring passwords.
-
-### Registration Flow
-1. User navigates to account settings
-2. Clicks "Register Passkey"
-3. Backend generates registration options (`@simplewebauthn/server`)
-4. Browser prompts for biometric/PIN
-5. Credential stored in database (`Passkey` model)
-
-### Verification Flow
-1. User initiates sensitive operation (withdraw, export key)
-2. Backend generates authentication challenge
-3. Browser prompts for biometric/PIN
-4. Backend verifies the signature
-5. Issues a one-time verification token (5-minute expiry)
-6. Token is consumed when the sensitive operation executes
-
-### Protected Operations
-- Wallet withdrawals
-- Private key export
-- Account deletion
 
 ---
 

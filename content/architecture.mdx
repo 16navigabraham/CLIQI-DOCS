@@ -56,8 +56,7 @@ src/
 │   ├── rate-limiter.js       # Sliding window rate limiters (8 tiers)
 │   ├── https-enforcer.js     # Force HTTPS in production
 │   ├── scanner-shield.js     # Block automated probes (.env, .php, .git)
-│   ├── privy-reauth.js       # Privy token re-verification for sensitive ops
-│   └── passkey-required.js   # One-time passkey verification tokens
+│   └── privy-reauth.js       # Privy token re-verification for sensitive ops
 ├── routes/
 │   ├── auth.js               # X OAuth, Privy login, account management
 │   ├── trades.js             # Buy/sell/swap, portfolio, PnL, trade history
@@ -65,7 +64,6 @@ src/
 │   ├── wallet-export.js      # HPKE-encrypted private key export
 │   ├── settings.js           # Trading parameters, notifications, auto-sell
 │   ├── premium.js            # CLIQI token subscription ($25/mo)
-│   ├── passkey.js            # WebAuthn register/authenticate
 │   └── admin.js              # Admin dashboard stats (Bearer auth)
 ├── services/
 │   ├── trade-orchestrator.js # Core: like → validate → swap → confirm
@@ -136,8 +134,6 @@ src/
 │   ├── TokenIcon.tsx         # Token logo (BlockScout/CoinGecko)
 │   ├── ChainIcon.tsx         # Chain badge (Base/Solana)
 │   ├── OnboardingWizard.tsx  # First-time setup flow
-│   ├── PasskeySetup.tsx      # Passkey registration
-│   ├── PasskeyAuthModal.tsx  # Passkey auth modal
 │   ├── SecureExportPrivateKey.tsx # HPKE key export
 │   ├── PnLBadge.tsx          # P&L indicator
 │   ├── HeroAnimation.tsx     # Landing page animation
@@ -174,7 +170,6 @@ UserSettings  # userId, solUsdBuyAmount, baseUsdcBuyAmount, maxSlippageBps, dail
 PremiumPayment # userId, paymentChain, amountPaid, amountUsd, txHash, status, startDate, endDate
 PollingState   # userId, lastTweetId, lastPolledAt, pollErrors, isRateLimited
 TokenCache     # address+chain (composite), symbol, name, riskScore, liquidityUsd, isHoneypot
-Passkey        # userId, credentialId, publicKey, counter, transports
 ```
 
 ---
