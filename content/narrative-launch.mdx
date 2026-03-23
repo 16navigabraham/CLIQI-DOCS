@@ -1,0 +1,241 @@
+# Narrative Token Launch
+
+CLIQI's AI-powered narrative engine autonomously detects trending crypto narratives on X, launches tokens on Base via Bankr, and distributes them to users. Creator fees are used to buy back both the narrative token and CLIQI.
+
+---
+
+## How It Works
+
+```
+X API (dedicated app)          ← Fetch trending crypto tweets
+        ↓
+Grok / xAI (grok-3-mini)      ← Cluster & score narratives
+        ↓
+Bankr Deploy API               ← Launch token on Base (gasless)
+        ↓
+X Bot (@cliqibot)              ← Post launch to X (primary)
+Telegram DM                    ← Notify premium users (opt-in)
+        ↓
+Users trade the token
+        ↓
+Bankr creator fees (WETH)      ← 57% of 1.2% swap fee
+        ↓
+Bankr Agent API                ← Claim fees + execute buyback
+  ├── 70% WETH → narrative token
+  └── 30% WETH → CLIQI token
+```
+
+---
+
+## Narrative Detection
+
+### Data Collection
+
+A **dedicated X developer app** (separate from the like-polling app) searches for trending crypto tweets using three query categories:
+
+- General crypto narratives (narrative, meta, trend, alpha)
+- Base ecosystem activity (token launches, bullish signals)
+- AI + crypto intersection (AI agents, AI tokens)
+
+Tweets are fetched via X API v2 `GET /2/tweets/search/recent` with engagement metrics (`public_metrics`) and author data.
+
+### Scoring (Grok)
+
+Tweets are sent to Grok (`grok-3-mini`) which:
+
+1. Clusters tweets by theme
+2. Scores each cluster on:
+
+| Signal | Weight | Description |
+|--------|--------|-------------|
+| Unique accounts | 30% | Breadth of discussion |
+| Engagement velocity | 25% | Likes + RTs per hour |
+| Influencer overlap | 20% | Multiple KOLs on same theme |
+| Freshness | 15% | Emerged in last 6 hours |
+| No existing token | 10% | Not already launched elsewhere |
+
+3. Returns the top narrative with a suggested token name, symbol, and description
+4. Only narratives scoring **≥ 70** (configurable) with **≥ 10 unique accounts** qualify
+
+### Quality Gates
+
+- Maximum **1 launch per day**
+- Same theme has a **7-day cooldown** (can't launch twice)
+- Narrative lifespan is **manually controlled** by admin (`PATCH /api/narratives/:id/complete`)
+
+---
+
+## Token Launch (Bankr)
+
+Tokens are deployed on **Base only** via Bankr's Deploy API:
+
+```
+POST https://api.bankr.bot/token-launches/deploy
+
+{
+  "tokenName": "AI Agents Meta",
+  "tokenSymbol": "AIMETA",
+  "description": "The AI agent narrative token launched by CLIQI"
+}
+```
+
+- **Gasless** — Bankr sponsors all gas fees
+- **No upfront cost** — 1.2% swap fee model
+- **Creator revenue** — CLIQI earns 57% of swap fees (WETH), paid to the Bankr agent wallet
+- Fees go to the Bankr agent wallet by default (no `feeRecipient` set), enabling automated claim + buyback
+
+---
+
+## Fee Buyback
+
+The buyback engine runs as an **hourly SafeInterval** background job:
+
+### Flow
+
+1. **Claim fees** — `POST /agent/prompt`: "claim my fees for 0xTokenAddress"
+2. **Check balance** — `GET /agent/balances` → look for WETH in `balances.base.tokenBalances`
+3. **Price check** — Convert WETH to USD via price oracle
+4. **Threshold gate** — Only execute if WETH balance ≥ **$100**
+5. **Execute buyback** via Bankr agent prompts:
+   - 70% WETH → narrative token (`POST /agent/prompt`: "swap X WETH for 0xToken on base")
+   - 30% WETH → CLIQI token (`POST /agent/prompt`: "swap X WETH for 0x075b...7ba3 on base")
+
+All operations go through Bankr's `/agent/prompt` → `/agent/job/{jobId}` async pattern. Bankr covers gas for all transactions.
+
+---
+
+## Distribution
+
+### Primary: X (@cliqibot)
+
+Every launched token is posted to X with:
+- Narrative summary
+- Score
+- Token address + BaseScan link
+
+### Premium: Telegram DM (opt-in)
+
+Premium users with `tgNotificationsEnabled` receive a Telegram DM with token details and a link to buy on CLIQI.
+
+---
+
+## API Endpoints
+
+### GET /api/narratives
+
+List narrative tokens. Public — no auth required.
+
+**Query params:**
+
+| Param | Type | Description |
+|-------|------|-------------|
+| status | string | `ACTIVE` or `COMPLETED` |
+| limit | number | Max results (default 20, max 50) |
+
+**Response:**
+```json
+{
+  "data": [
+    {
+      "id": "uuid",
+      "narrative": "AI agents are becoming the dominant narrative...",
+      "tokenAddress": "0x...",
+      "tokenSymbol": "AIMETA",
+      "tokenName": "AI Agents Meta",
+      "chain": "BASE",
+      "status": "ACTIVE",
+      "score": 85,
+      "tweetId": "1234567890",
+      "totalBuybackUsd": 350.00,
+      "launchedAt": "2026-03-24T12:00:00Z"
+    }
+  ]
+}
+```
+
+### GET /api/narratives/:id
+
+Get narrative detail with buyback history.
+
+### PATCH /api/narratives/:id/complete
+
+**Auth:** Required (admin only)
+
+Manually end a narrative — sets status to `COMPLETED`.
+
+---
+
+## Database Models
+
+### NarrativeToken
+
+| Field | Type | Description |
+|-------|------|-------------|
+| id | uuid | Primary key |
+| narrative | text | AI-generated narrative summary |
+| sourceTweets | string[] | Tweet IDs that sparked the narrative |
+| tokenAddress | string | Deployed token contract |
+| tokenSymbol | string | Ticker |
+| tokenName | string | Full name |
+| chain | Chain | Always `BASE` |
+| bankrTokenId | string? | Bankr activity ID |
+| status | NarrativeStatus | `ACTIVE`, `COMPLETED`, `FAILED` |
+| score | int | Narrative strength (0–100) |
+| tweetId | string? | Posted tweet ID |
+| totalBuybackUsd | decimal | Cumulative buyback value |
+
+### NarrativeBuyback
+
+| Field | Type | Description |
+|-------|------|-------------|
+| id | uuid | Primary key |
+| narrativeTokenId | string | FK → NarrativeToken |
+| feeSourceUsd | decimal | Total WETH value in USD |
+| tokenBuyUsd | decimal | 70% allocation |
+| cliqiBuyUsd | decimal | 30% allocation |
+| tokenTxHash | string? | Narrative token swap tx |
+| cliqiTxHash | string? | CLIQI swap tx |
+| status | TxStatus | `PENDING`, `CONFIRMED`, `FAILED` |
+
+---
+
+## Background Jobs
+
+| Job | Interval | Description |
+|-----|----------|-------------|
+| `narrative-engine` | 30 min | Fetch tweets → score → launch → post |
+| `fee-buyback` | 1 hour | Claim Bankr fees → check threshold → buyback |
+
+---
+
+## Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `X_NARRATIVE_BEARER_TOKEN` | Yes | Dedicated X API app for narrative scraping |
+| `XAI_API_KEY` | Yes | Grok (xAI) API key for narrative scoring |
+| `BANKR_API_KEY` | Yes | Bankr API — launch, claim fees, swap |
+| `NARRATIVE_SCORE_THRESHOLD` | No | Min score to launch (default: 70) |
+| `NARRATIVE_BUYBACK_THRESHOLD_USD` | No | Min WETH value before buyback (default: $100) |
+
+---
+
+## Revenue Model
+
+```
+Token launched via Bankr
+        ↓
+Users trade on DEX (1.2% swap fee)
+        ↓
+Fee split:
+  ├── 57% → CLIQI (creator)     ← WETH to Bankr agent wallet
+  ├── 36.1% → Bankr
+  ├── 1.9% → Ecosystem
+  └── 5% → Protocol (Doppler)
+        ↓
+CLIQI's 57% buyback split:
+  ├── 70% → buy narrative token  ← price support
+  └── 30% → buy CLIQI token     ← CLIQI price support
+```
+
+Win for all — users get early access to narrative tokens, narrative token gets price support, CLIQI token gets continuous buy pressure.

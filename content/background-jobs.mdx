@@ -21,6 +21,8 @@ All background jobs use the **SafeInterval** pattern — a crash-resilient wrapp
 | **escrowRefund** | 24h | Refund expired escrow tips (30-day claim window) |
 | **autoSell** | 30s | Check TP/SL triggers on premium users' portfolio holdings |
 | **queueStats** | 1m | Log trade queue metrics when queue is non-empty |
+| **narrativeEngine** | 30m | Fetch X trends → Grok scoring → Bankr token launch → post to X |
+| **feeBuyback** | 1h | Claim Bankr creator fees → buyback narrative token (70%) + CLIQI (30%) |
 
 ---
 

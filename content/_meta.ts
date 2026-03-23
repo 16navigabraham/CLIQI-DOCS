@@ -21,6 +21,7 @@ export default {
   },
   'premium-model': 'Premium Model',
   'fees-and-revenue': 'Fees & Revenue',
+  'narrative-launch': 'Narrative Token Launch',
   '-- Security & Infra': {
     type: 'separator',
     title: 'Security & Infra',

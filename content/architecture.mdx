@@ -64,7 +64,8 @@ src/
 │   ├── wallet-export.js      # HPKE-encrypted private key export
 │   ├── settings.js           # Trading parameters, notifications, auto-sell
 │   ├── premium.js            # CLIQI token subscription ($25/mo)
-│   └── admin.js              # Admin dashboard stats (Bearer auth)
+│   ├── admin.js              # Admin dashboard stats (Bearer auth)
+│   └── narratives.js         # Narrative token list, detail, completion
 ├── services/
 │   ├── trade-orchestrator.js # Core: like → validate → swap → confirm
 │   ├── price-oracle.js       # CoinGecko + DEXScreener (5-min cache)
@@ -84,6 +85,13 @@ src/
 │   │   └── token-safety.js   # Risk scoring (GoPlusLabs + RugCheck)
 │   ├── wallet/
 │   │   └── wallet-service.js # Privy server wallets + local encrypted keys
+│   ├── narrative/
+│   │   ├── narrative-engine.js    # Orchestrator: fetch → score → launch → post
+│   │   ├── x-narrative-fetcher.js # Trending crypto tweet fetcher (dedicated X app)
+│   │   ├── narrative-scorer.js    # Grok (xAI) tweet clustering & scoring
+│   │   ├── bankr-launcher.js      # Gasless token deploy via Bankr API
+│   │   ├── narrative-poster.js    # Post launch tweet to X (@cliqibot)
+│   │   └── fee-buyback.js         # Claim Bankr fees → 70/30 buyback
 │   └── swap/
 │       ├── evm-swap.js       # Base swap execution (aggregator racing)
 │       ├── solana-swap.js    # Solana swap execution (Jupiter)
@@ -170,6 +178,8 @@ UserSettings  # userId, solUsdBuyAmount, baseUsdcBuyAmount, maxSlippageBps, dail
 PremiumPayment # userId, paymentChain, amountPaid, amountUsd, txHash, status, startDate, endDate
 PollingState   # userId, lastTweetId, lastPolledAt, pollErrors, isRateLimited
 TokenCache     # address+chain (composite), symbol, name, riskScore, liquidityUsd, isHoneypot
+NarrativeToken # narrative, tokenAddress, tokenSymbol, chain (BASE), score, status, totalBuybackUsd
+NarrativeBuyback # narrativeTokenId, feeSourceUsd, tokenBuyUsd, cliqiBuyUsd, txHashes, status
 ```
 
 ---
