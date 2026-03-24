@@ -51,6 +51,15 @@ src/
 │   ├── redis.js              # Upstash REST Redis singleton
 │   ├── sentry.js             # Sentry initialization
 │   └── trade-queue.js        # Priority queue (max 3 concurrent, dedup)
+├── bot/
+│   ├── index.js              # Grammy bot setup, command + callback registration
+│   └── handlers/
+│       ├── start.js          # /start, /help, main menu
+│       ├── connect.js        # /connect — link TG account
+│       ├── wallet.js         # /balance — wallet balances
+│       ├── portfolio.js      # /portfolio — active positions, sell flow
+│       ├── trades.js         # /trades, /stats — trade history & stats
+│       └── narrative.js      # Narrative token buy flow (preset + custom amounts)
 ├── middleware/
 │   ├── auth.js               # JWT verification → req.user
 │   ├── rate-limiter.js       # Sliding window rate limiters (8 tiers)
@@ -69,7 +78,7 @@ src/
 ├── services/
 │   ├── trade-orchestrator.js # Core: like → validate → swap → confirm
 │   ├── price-oracle.js       # CoinGecko + DEXScreener (5-min cache)
-│   ├── notifications.js      # Telegram + WebSocket + X post dispatcher
+│   ├── notifications.js      # Telegram + WebSocket + X post + P&L dispatcher
 │   ├── auto-sell.js          # TP/SL monitoring (premium, every 30s)
 │   ├── ca-parser.js          # Extract contract addresses from tweet text
 │   ├── error-notifier.js     # Admin TG alerts + Sentry (rate-limited)
@@ -80,6 +89,7 @@ src/
 │   ├── x-trade-poster.js     # Auto-post trades to X (3-min cooldown)
 │   ├── x-mention-monitor.js  # @CliqiApp mention tracking
 │   ├── alchemy-tokens.js     # ERC-20 discovery via Alchemy
+│   ├── pnl-monitor.js        # P&L notification monitor (premium, every 90s)
 │   ├── fee-collector.js      # Platform fee calculation + treasury transfer
 │   ├── safety/
 │   │   └── token-safety.js   # Risk scoring (GoPlusLabs + RugCheck)
@@ -174,7 +184,8 @@ Wallet        # userId, chain (SOLANA|BASE), address, privyWalletId, walletType 
 Trade         # userId, chain, tokenAddress, action (BUY|SELL), amountIn/Out, amountInUsd,
               # txHash, txStatus (PENDING|SUBMITTED|CONFIRMED|FAILED|REJECTED), platformFee
 UserSettings  # userId, solUsdBuyAmount, baseUsdcBuyAmount, maxSlippageBps, dailyLimitUsd,
-              # autoSellEnabled, takeProfitPct, stopLossPct, tgNotificationsEnabled
+              # autoSellEnabled, takeProfitPct, stopLossPct, tgNotificationsEnabled,
+              # tgNotifyNarrativeLaunch
 PremiumPayment # userId, paymentChain, amountPaid, amountUsd, txHash, status, startDate, endDate
 PollingState   # userId, lastTweetId, lastPolledAt, pollErrors, isRateLimited
 TokenCache     # address+chain (composite), symbol, name, riskScore, liquidityUsd, isHoneypot
