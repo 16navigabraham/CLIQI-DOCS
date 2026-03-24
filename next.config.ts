@@ -8,4 +8,5 @@ export default withNextra({
   output: 'export',
   images: { unoptimized: true },
   reactStrictMode: true,
+  trailingSlash: false,
 })
