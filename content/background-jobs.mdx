@@ -22,8 +22,8 @@ All background jobs use the **SafeInterval** pattern — a crash-resilient wrapp
 | **autoSell** | 30s | Check TP/SL triggers on premium users' portfolio holdings |
 | **pnlMonitor** | 90s | Send P&L updates to premium TG users on significant changes |
 | **queueStats** | 1m | Log trade queue metrics when queue is non-empty |
-| **narrativeEngine** | 30m | Fetch X trends → Grok scoring → Bankr token launch → post to X |
-| **feeBuyback** | 1h | Claim Bankr creator fees → buyback narrative token (70%) + CLIQI (30%) |
+| **narrativeEngine** | 30m | Fetch emerging trends across all X topics → Grok scoring → Bankr token launch → TG notify premium → post to X (max 3/day) |
+| **feeBuyback** | 1h | Claim Bankr creator fees → accumulate per token → buyback at $100 (50% narrative token / 40% CLIQI / 10% Bankr sub) |
 
 ---
 

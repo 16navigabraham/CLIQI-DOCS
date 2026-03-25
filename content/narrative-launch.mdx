@@ -1,20 +1,20 @@
 # Narrative Token Launch
 
-CLIQI's AI-powered narrative engine autonomously detects trending crypto narratives on X, launches tokens on Base via Bankr, and distributes them to users. Creator fees are used to buy back both the narrative token and CLIQI.
+CLIQI's AI-powered narrative engine autonomously detects emerging trends across ALL of X — politics, AI, sports, world events, culture, and crypto — and tokenizes them on Base via Bankr before they go mainstream. Creator fees are used to buy back both the narrative token and CLIQI.
 
 ---
 
 ## How It Works
 
 ```
-X API (dedicated app)          ← Fetch trending crypto tweets
+X API (dedicated app)          ← Fetch trending tweets across ALL topics
         ↓
-Grok / xAI (grok-3-mini)      ← Cluster & score narratives
+Grok / xAI (grok-3-mini)      ← Cluster & score emerging trends
         ↓
 Bankr Deploy API               ← Launch token on Base (gasless)
         ↓
+Telegram DM                    ← Notify premium users FIRST (alpha)
 X Bot (@cliqibot)              ← Post launch to X (full CA shown)
-Telegram DM                    ← Notify premium users (auto-enabled on TG connect)
         ↓
 Users trade the token
         ↓
@@ -28,23 +28,28 @@ Bankr Agent API                ← Claim fees + accumulate per token + buyback a
 
 ---
 
-## Narrative Detection
+## Trend Detection
 
 ### Data Collection
 
-A **dedicated X developer app** (separate from the like-polling app) searches for trending crypto tweets using three query categories:
+A **dedicated X developer app** (separate from the like-polling app) searches for emerging trends across 8 mainstream categories:
 
-- General crypto narratives (narrative, meta, trend, alpha)
-- Base ecosystem activity (token launches, bullish signals)
-- AI + crypto intersection (AI agents, AI tokens)
+- **Breaking news & viral moments** — "just announced", "this is huge", trending phrases
+- **Politics & policy** — Trump, elections, sanctions, tariffs, trade wars
+- **AI & tech** — AI breakthroughs, ChatGPT, robotics, quantum computing
+- **Geopolitics & conflict** — wars, ceasefires, peace deals, military events
+- **Economy & markets** — Fed decisions, inflation, interest rates, crashes, rallies
+- **Pop culture & sports** — championships, viral moments, scandals
+- **Science & space** — SpaceX, NASA, climate events, discoveries
+- **Crypto** — only as one of many signals, not the primary focus
 
-Tweets are fetched via X API v2 `GET /2/tweets/search/recent` with engagement metrics (`public_metrics`) and author data.
+Tweets are fetched via X API v2 `GET /2/tweets/search/recent` with engagement metrics (`public_metrics`) and author data. The key insight: catch trends **before** crypto Twitter picks them up.
 
 ### Scoring (Grok)
 
-Tweets are sent to Grok (`grok-3-mini`) which:
+Tweets are sent to Grok (`grok-3-mini`) acting as a **trend-spotter** which:
 
-1. Clusters tweets by theme
+1. Clusters tweets by theme/trending topic
 2. Scores each cluster on:
 
 | Signal | Weight | Description |
@@ -55,13 +60,15 @@ Tweets are sent to Grok (`grok-3-mini`) which:
 | Freshness | 15% | Emerged in last 6 hours |
 | No existing token | 10% | Not already launched elsewhere |
 
-3. Returns the top narrative with a suggested token name, symbol, and description
+3. Returns the top trend with a FOMO-style summary, suggested token name, symbol, and description
 4. Only narratives scoring **≥ 70** (configurable) with **≥ 10 unique accounts** qualify
+5. Mainstream narratives (politics, AI, world events) are **prioritized** over crypto-native ones
 
 ### Quality Gates
 
-- Maximum **1 launch per day**
+- Maximum **3 launches per day** (configurable via `MAX_LAUNCHES_PER_DAY`)
 - Same theme has a **7-day cooldown** (can't launch twice)
+- Engine can be **paused** via `NARRATIVE_PAUSED=true` env var
 - Narrative lifespan is **manually controlled** by admin (`PATCH /api/narratives/:id/complete`)
 
 ---
@@ -141,29 +148,29 @@ Each active token is processed sequentially. The balance delta per claim ensures
 
 ## Distribution
 
-### Primary: X (@cliqibot)
+### Premium Alpha: Telegram DM (sent FIRST)
 
-Every launched token is posted to X with:
-- Narrative summary
-- Score
-- Full contract address (CA) + BaseScan link
+Premium users receive a Telegram DM **before** the public X post — giving them early access to the narrative token.
 
-### Premium: Telegram DM
-
-Premium users receive a Telegram DM automatically when a narrative token launches. Notifications are **auto-enabled** when a user connects their Telegram account and can be toggled individually via `tgNotifyNarrativeLaunch`.
+Notifications are **auto-enabled** when a user connects their Telegram account and can be toggled individually via `tgNotifyNarrativeLaunch`.
 
 The TG notification includes:
-- Token name, symbol, narrative summary, and score
+- Token name, symbol, FOMO-style narrative summary, and score
 - BaseScan link
-- Inline **Buy** button
-
-### Telegram Buy
-
-Preset amounts: **$5 / $10 / $25 / $50 / $100** or custom amount.
+- Inline **Buy** button with preset amounts: **$5 / $10 / $25 / $50 / $100**
+- Cancel option to dismiss the buy prompt
 
 The buy respects the user's configured **Base trading mode**:
-- `USDC` mode → gasless USDC swap
-- `ETH` mode → ETH swap
+- `USDC` mode → gasless USDC swap (direct)
+- `ETH` mode → USD amount converted to ETH equivalent, then swapped
+
+### Public: X (@cliqibot)
+
+After premium TG notifications are sent, the token is posted to X with:
+- Full contract address (CA) at the top
+- FOMO-style narrative summary
+- Score
+- BaseScan link
 
 ---
 
@@ -261,10 +268,12 @@ Manually end a narrative — sets status to `COMPLETED`.
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `X_NARRATIVE_BEARER_TOKEN` | Yes | Dedicated X API app for narrative scraping |
-| `XAI_API_KEY` | Yes | Grok (xAI) API key for narrative scoring |
+| `X_NARRATIVE_BEARER_TOKEN` | Yes | Dedicated X API app for trend scraping |
+| `XAI_API_KEY` | Yes | Grok (xAI) API key for trend scoring |
 | `BANKR_API_KEY` | Yes | Bankr API — launch, claim fees, swap |
+| `NARRATIVE_PAUSED` | No | Set `true` to pause the engine (default: false) |
 | `NARRATIVE_SCORE_THRESHOLD` | No | Min score to launch (default: 70) |
+| `NARRATIVE_MIN_CLUSTER_ACCOUNTS` | No | Min unique accounts discussing a trend (default: 10) |
 | `NARRATIVE_BUYBACK_THRESHOLD_USD` | No | Min accumulated WETH value before buyback (default: $100) |
 
 ---
