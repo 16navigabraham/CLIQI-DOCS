@@ -97,3 +97,18 @@ The admin endpoint (`GET /api/admin/stats`) provides real-time revenue metrics:
 - **Time range filtering:** Today, week, month, all, or custom date range
 
 All values are normalized to USD for consistent reporting regardless of the chain's native currency.
+
+---
+
+## Narrative Fee Buyback (ECHO)
+
+Narrative tokens launched via Bankr generate creator fees (57% of the 1.2% swap fee) paid as WETH to the Bankr agent wallet.
+
+**100% of all claimed WETH fees → ECHO token buyback on Base.**
+
+- Fees are claimed **once per day per token** to stay within Bankr's 100 messages/day API limit
+- Claimed fees accumulate per token in Redis until the accumulated value reaches **$100 USD**
+- At $100, the full amount is swapped into ECHO via Bankr's agent API
+- The ECHO token address is configured via `ECHO_TOKEN_ADDRESS` env var
+
+See the [Narrative Token Launch](/narrative-launch) docs for the full buyback flow.
