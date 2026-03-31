@@ -34,7 +34,7 @@ All background jobs use the **SafeInterval** pattern — a crash-resilient wrapp
 
 For each connected WebSocket user:
 1. Fetch their wallet token holdings (Alchemy for Base, RPC for Solana)
-2. Get live prices from DEXScreener
+2. Get live prices via the price oracle (GeckoTerminal → DEXScreener → stale cache → DEX aggregator quote fallback)
 3. Push `prices:update` event with all token prices + values
 4. Skips users with no active WebSocket connection
 

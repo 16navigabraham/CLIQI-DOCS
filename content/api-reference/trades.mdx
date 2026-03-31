@@ -191,7 +191,7 @@ Buy a token directly via contract address (manual buy).
 
 ## POST /api/trades/sell
 
-Sell a token back to native currency (SOL or ETH).
+Sell a token back to native currency (SOL or ETH). Supports exact amounts, percentage-based closing, or selling the full balance.
 
 **Auth:** Required
 
@@ -200,8 +200,7 @@ Sell a token back to native currency (SOL or ETH).
 {
   "tokenAddress": "DezXAZ9HGe...",
   "chain": "SOLANA",
-  "amountRaw": "15000005000000",
-  "sellAll": false
+  "percentage": 50
 }
 ```
 
@@ -209,8 +208,11 @@ Sell a token back to native currency (SOL or ETH).
 |-------|----------|-------------|
 | tokenAddress | Yes | Token contract address |
 | chain | Yes | `SOLANA` or `BASE` |
-| amountRaw | If !sellAll | Amount in raw token units |
-| sellAll | If !amountRaw | Sell entire balance |
+| amountRaw | One of these three | Amount in raw token units |
+| sellAll | One of these three | Sell entire balance (`true`) |
+| percentage | One of these three | Sell a percentage of held tokens (1–99) |
+
+**Percentage mode:** The server fetches the user's on-chain balance and computes the exact amount to sell using BigInt arithmetic. This is used by the Close Position modal in the portfolio UI (25%, 50%, 75% buttons). Use `sellAll: true` for 100%.
 
 **Success Response (200):**
 ```json

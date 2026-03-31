@@ -28,7 +28,7 @@ Get all wallets for the authenticated user.
 
 ## GET /api/wallet/balance
 
-Get real-time balances for all user wallets with USD conversion. Includes native tokens (SOL/ETH) and all token holdings.
+Get real-time balances for all user wallets with USD conversion. Total includes native balances + wallet tokens (USDC, CLIQI, ECHO) + portfolio positions value.
 
 **Auth:** Required
 
@@ -39,40 +39,25 @@ Get real-time balances for all user wallets with USD conversion. Includes native
   "wallets": [
     {
       "walletId": "clx...",
-      "chain": "SOLANA",
-      "address": "7B5NrSkUQP...",
-      "balance": "0.85",
-      "balanceUsd": 102.50,
-      "nativeToken": "SOL",
-      "priceUsd": 120.59
-    },
-    {
-      "walletId": "clx...",
       "chain": "BASE",
       "address": "0x4fd76952...",
       "balance": "0.01",
       "balanceUsd": 23.00,
       "nativeToken": "ETH",
       "priceUsd": 2300.00
-    }
-  ],
-  "tokens": [
+    },
     {
-      "tokenAddress": "DezXAZ9HGe...",
-      "tokenSymbol": "BONK",
-      "tokenName": "Bonk",
-      "amount": "1500000.5",
-      "amountRaw": "15000005000000",
-      "decimals": 5,
+      "walletId": "clx...",
       "chain": "SOLANA",
-      "priceUsd": 0.0001,
-      "valueUsd": 150.00
+      "address": "7B5NrSkUQP...",
+      "balance": "0.85",
+      "balanceUsd": 102.50,
+      "nativeToken": "SOL",
+      "priceUsd": 120.59
     }
   ],
-  "breakdown": {
-    "nativeUsd": 125.50,
-    "tokensUsd": 1150.60
-  }
+  "walletTokensUsd": 150.00,
+  "portfolioUsd": 959.06
 }
 ```
 
@@ -180,27 +165,43 @@ Withdraw native tokens (SOL or ETH) to an external wallet address.
 
 ## GET /api/wallet/tokens
 
-Get all token holdings with live prices. Zero-balance tokens are automatically excluded.
+Returns default wallet tokens (USDC, CLIQI, ECHO) with on-chain balances and live prices. Tokens are **always returned** even with zero balance — they act as the user's core wallet view. Traded tokens (from like-to-buy or manual swaps) appear in the portfolio instead (`GET /api/trades/portfolio`).
 
 **Auth:** Required
+
+**Default tokens:**
+- **Base:** USDC, CLIQI, ECHO
+- **Solana:** USDC
 
 **Response:**
 ```json
 {
   "tokens": [
     {
-      "chain": "SOLANA",
-      "tokenAddress": "DezXAZ9HGe...",
-      "tokenSymbol": "BONK",
-      "tokenName": "Bonk",
-      "amount": "1500000.5",
-      "amountRaw": "15000005000000",
-      "decimals": 5,
-      "currentPriceUsd": 0.0000125,
-      "currentValueUsd": 18.75
+      "chain": "BASE",
+      "tokenAddress": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+      "tokenSymbol": "USDC",
+      "tokenName": "USD Coin",
+      "amount": "50.00",
+      "amountRaw": "50000000",
+      "decimals": 6,
+      "currentPriceUsd": 1,
+      "currentValueUsd": 50.00,
+      "isStable": true
+    },
+    {
+      "chain": "BASE",
+      "tokenAddress": "0x075b111329bd8fb54c6e2c1aa6d742a435ad7ba3",
+      "tokenSymbol": "CLIQI",
+      "tokenName": "Cliqi",
+      "amount": "0",
+      "amountRaw": "0",
+      "decimals": 18,
+      "currentPriceUsd": 0.00000268,
+      "currentValueUsd": 0
     }
   ]
 }
 ```
 
-For real-time updates, subscribe to the `prices:update` WebSocket event instead of polling this endpoint.
+For real-time price updates, subscribe to the `prices:update` WebSocket event instead of polling this endpoint.
