@@ -38,10 +38,11 @@ The trade pipeline is the core of CLIQI — it takes a user's X like and turns i
                            ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │ 5. EXECUTION                                                     │
-│    Solana: Jupiter API → sign with Privy wallet → confirm       │
+│    Solana: PumpPortal → retry (timeout/network only) → Jupiter  │
 │    Base:   Best aggregator → ethers tx → confirm                │
 │    USDC mode: 0x Gasless (gas-sponsored, no ETH needed)         │
 │    Platform fee deducted from input amount before swap           │
+│    Priority fee: 0.0005 SOL for Solana transactions             │
 └──────────────────────────┬──────────────────────────────────────┘
                            ▼
 ┌─────────────────────────────────────────────────────────────────┐
@@ -49,7 +50,7 @@ The trade pipeline is the core of CLIQI — it takes a user's X like and turns i
 │    ├─ Save trade record (CONFIRMED/FAILED)                      │
 │    ├─ Transfer platform fee to treasury                         │
 │    ├─ WebSocket: real-time notification to user                 │
-│    ├─ Telegram: alert (premium + enabled)                       │
+│    ├─ Telegram: trade alert + position summary with sell buttons│
 │    ├─ X: auto-post trade card (3-min cooldown)                  │
 │    └─ Low balance check → alert if below threshold              │
 └─────────────────────────────────────────────────────────────────┘
@@ -109,13 +110,15 @@ The **quote engine** races multiple aggregators for the best price:
 ## Step 5: Execution
 
 **Solana flow:**
-1. Jupiter returns serialized transaction
-2. Sign with Privy server wallet
-3. Submit to Solana RPC
-4. Confirm on-chain (poll for confirmation)
+1. Check if token is available on PumpPortal (bonding curve, PumpSwap, Raydium)
+2. If available: PumpPortal builds + signs tx → submit with 0.0005 SOL priority fee
+3. If PumpPortal times out (~30s) or fails: automatic fallback to Jupiter
+4. Smart retry: only retries on timeout/network errors (1 retry), non-retryable errors (slippage, insufficient funds) fail immediately to Jupiter
+5. Jupiter routes through 20+ DEXs for best price
+6. Confirm on-chain, extract actual amounts from transaction (filtered by mint + owner)
 
 **Base (ETH mode):**
-1. Build swap transaction from best aggregator
+1. Build swap transaction from best aggregator (0x vs Odos vs KyberSwap race)
 2. Sign and send via ethers.js
 3. Wait for transaction receipt
 
@@ -129,11 +132,13 @@ The **quote engine** races multiple aggregators for the best price:
 After swap confirmation:
 
 1. **Database:** Trade record saved with `CONFIRMED` status, amounts, fees, tx hash
-2. **Treasury:** Platform fee transferred to treasury wallet
+2. **Treasury:** Platform fee transferred to treasury wallet (fire-and-forget, non-fatal)
 3. **WebSocket:** `trade:confirmed` event pushed to user's browser
-4. **Telegram:** Notification sent (if premium + enabled)
+4. **Telegram notifications** (premium + enabled):
+   - Trade confirmation with tx link and risk score
+   - **Position summary** (BUY only): total held, total spent, avg cost per token, with inline sell buttons (100%, 50%, 25%)
 5. **X post:** Trade card auto-posted to X (3-minute cooldown between posts)
-6. **Low balance:** If wallet drops below threshold, `alert:low_balance` event sent
+6. **Low balance:** If wallet drops below threshold, `alert:low_balance` event sent (like-to-buy trades only)
 
 ---
 

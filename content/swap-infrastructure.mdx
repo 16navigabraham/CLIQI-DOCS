@@ -48,17 +48,76 @@ CLIQI doesn't rely on a single DEX — it races multiple aggregators in parallel
 
 ---
 
-## Solana Aggregators
+## Solana Swap Flow
 
-### Jupiter
-- Primary aggregator for all Solana swaps
-- Native `platformFeeBps` parameter for fee collection
-- Supports versioned transactions
+Solana uses a two-tier routing strategy: PumpPortal first, Jupiter as fallback.
+
+```
+Token address received
+       │
+       ▼
+┌─────────────────┐
+│ Is stablecoin?  │──── Yes ──── Skip to Jupiter
+└──────┬──────────┘
+       │ No
+       ▼
+┌─────────────────┐
+│ PumpPortal      │  Test request to check availability
+│ availability    │  (covers bonding curve, PumpSwap, Raydium)
+│ check           │
+└──────┬──────────┘
+       │
+  ┌────┴────┐
+  │Available │──── No ──── Skip to Jupiter
+  └────┬────┘
+       │ Yes
+       ▼
+┌─────────────────┐
+│ PumpPortal      │  Priority fee: 0.0005 SOL
+│ execute swap    │  Min slippage: 15% buy, 20% sell
+│                 │  Timeout: ~30s (Solana confirmTransaction)
+└──────┬──────────┘
+       │
+  ┌────┴─────┐
+  │Confirmed?│──── Yes ──── Return result
+  └────┬─────┘
+       │ No (timeout or network error)
+       ▼
+┌─────────────────┐
+│ Smart retry     │  1 retry for timeout/network errors only
+│                 │  Non-retryable errors (slippage, funds) fail immediately
+│                 │  2s delay before retry
+└──────┬──────────┘
+       │ Still failing
+       ▼
+┌─────────────────┐
+│ Jupiter         │  Fallback aggregator
+│ execute swap    │  Routes through best available DEX
+│                 │  (often routes through Pump.fun anyway)
+└─────────────────┘
+```
 
 ### PumpPortal (Pump.fun)
-- Specialized for Pump.fun token swaps
+- First-choice router for non-stablecoin Solana tokens
+- Covers bonding curve, PumpSwap AMM, and Raydium pools
+- Priority fee: **0.0005 SOL** (~$0.07) for faster confirmation
 - Higher slippage minimums (15% buy, 20% sell)
-- Used when token is detected as a Pump.fun token
+- **Smart retry**: 1 retry on timeout/network errors only — slippage failures and insufficient funds fail immediately to Jupiter fallback
+- Fetches actual token decimals from on-chain mint (never hardcoded)
+- Extracts actual output amounts from confirmed transaction (filtered by mint + owner)
+
+### Jupiter
+- Fallback aggregator for all Solana swaps
+- Primary aggregator for stablecoins and tokens not on PumpPortal
+- Native `platformFeeBps` parameter for fee collection
+- Supports versioned transactions
+- Routes through 20+ DEXs including Pump.fun, Raydium, Orca
+
+### Token Metadata Fallback
+When a token's symbol isn't known, CLIQI uses a three-layer fallback:
+1. **DexScreener** — primary source
+2. **Jupiter token list** — secondary
+3. **On-chain mint metadata** — last resort (Token-2022 extensions)
 
 ---
 
