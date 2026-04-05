@@ -18,7 +18,6 @@ All background jobs use the **SafeInterval** pattern — a crash-resilient wrapp
 | **pricePush** | 30s | Broadcast live token prices to connected WebSocket clients |
 | **stuckTrades** | 5m | Resolve PENDING/SUBMITTED trades stuck > 10 min via on-chain check |
 | **premiumExpiration** | 1h | Downgrade expired premium users, send Telegram notification |
-| **escrowRefund** | 24h | Refund expired escrow tips (30-day claim window) |
 | **autoSell** | 30s | Check TP/SL triggers on premium users' portfolio holdings |
 | **pnlMonitor** | 90s | Send P&L updates to premium TG users on significant changes |
 | **queueStats** | 1m | Log trade queue metrics when queue is non-empty |
@@ -58,15 +57,26 @@ Downgrades users whose premium subscription has expired:
 
 ### Auto-Sell Monitor (30s) — Premium Only
 
-Monitors portfolio positions against take-profit and stop-loss thresholds:
+Monitors portfolio positions against take-profit and stop-loss thresholds. Processes all users in parallel for fast cycle times (~1.3–1.5s).
+
+**Architecture:**
 1. Find all premium users with `autoSellEnabled = true`
-2. For each user, get their open portfolio positions
-3. Fetch current token prices
-4. Check each position:
-   - **Take profit:** Current price `>=` buy price `*` (1 + takeProfitPct / 100)
-   - **Stop loss:** Current price `<=` buy price `*` (1 - stopLossPct / 100)
-5. If triggered, execute a sell-all trade via the trade orchestrator
-6. Send `auto-sell:executed` or `auto-sell:failed` WebSocket event
+2. Process all users in parallel via `Promise.allSettled` (not sequential)
+3. For each user, fetch token balances using `fetchTokenBalances` — targeted per-chain RPC calls instead of full wallet scan
+4. Fetch current token prices via price oracle
+5. Check each position against thresholds:
+   - **Take profit:** Triggers at the exact TP threshold (no slippage buffer) — e.g., 50% TP triggers at +50%
+   - **Stop loss:** Triggers early with a slippage buffer — e.g., -17% SL with 3% buffer triggers at -14%, ensuring the sell executes before the actual threshold is breached
+6. **Grace period:** Tokens bought within the last 3 minutes are skipped to prevent false stop-loss triggers on newly purchased tokens with volatile initial pricing
+7. If triggered, execute a sell-all trade via the trade orchestrator
+8. Send `auto-sell:executed` or `auto-sell:failed` WebSocket event
+9. Diagnostic logging for every position check (token, PnL%, thresholds, prices)
+
+**Performance optimisations:**
+- **Parallel user processing:** All users checked simultaneously, not sequentially
+- **Balance cache:** 120-second TTL per user, invalidated on sell execution
+- **`fetchTokenBalances`:** Groups tokens by chain, one RPC call per chain (Solana `getTokenAccountsByOwner` + Alchemy `getTokenBalances` for Base), with direct `balanceOf` fallback for EVM tokens not in Alchemy index
+- **Price cache warmup:** Native prices (SOL, ETH) pre-fetched on server startup to avoid null prices after cold restart
 
 ### P&L Monitor (90s) — Premium Only
 

@@ -6,7 +6,8 @@
 ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐
 │  User    │───►│  Privy   │───►│ Backend  │───►│  JWT     │
 │  clicks  │    │  Modal   │    │ /privy/  │    │  issued  │
-│  login   │    │ (X/email)│    │  login   │    │  (7d)    │
+│  login   │    │(X/TG/    │    │  login   │    │  (7d)    │
+│          │    │ email)   │    │          │    │          │
 └──────────┘    └──────────┘    └──────────┘    └──────────┘
 ```
 
@@ -28,6 +29,7 @@
 | Method | Purpose |
 |--------|---------|
 | X (Twitter) OAuth | Primary signup/login — connects X account for like monitoring |
+| Telegram OAuth | TG-first signup/login via Privy — creates account without X |
 | Email | Account recovery path |
 | Privy re-auth | Fresh token required for wallet export |
 
@@ -57,15 +59,32 @@ For wallet export specifically, Privy re-auth is required:
 
 ---
 
-## Telegram Connection
+## Telegram Signup (TG-First)
 
-Users can link their Telegram account for trade notifications:
+Users can create accounts directly via Telegram OAuth through Privy, without needing an X account:
+
+1. User clicks "Get Started" and selects Telegram login in the Privy modal
+2. Privy handles the Telegram OAuth flow (CSP allows `https://auth.privy.io` in `script-src` and `https://oauth.telegram.org` in `connect-src`)
+3. Frontend calls `POST /api/auth/privy/login` with the Privy token
+4. Backend creates account using `telegramUsername` as the display name (no `xUsername`)
+5. Auto-generates Base & Solana wallets + default settings
+6. User can optionally connect their X account later via `POST /api/auth/connect/x` to enable like-to-buy
+
+**Dashboard fallback:** TG-only users see their Telegram username throughout the dashboard (sidebar, welcome message) via the fallback chain: `xUsername || telegramUsername || 'user'`
+
+---
+
+## Telegram Connection (Existing Users)
+
+Users with an existing account can link their Telegram for trade notifications:
 
 1. User calls `POST /api/auth/connect/telegram` with their Telegram username
 2. Backend generates a 6-character connect code
 3. User opens the Telegram bot and sends `/connect <code>`
 4. Bot verifies the code and links the Telegram chat ID to the user
 5. Notifications now delivered via Telegram DM
+
+**Guard:** If a user tries to connect an X account that already belongs to another user, the connection is rejected to prevent account merging conflicts.
 
 ---
 

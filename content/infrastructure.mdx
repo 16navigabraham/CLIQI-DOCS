@@ -31,6 +31,16 @@ With only 512 MB, the server uses several strategies to stay within limits:
 - **In-memory queue:** Max 3 concurrent trades to limit parallel processing
 - **Quote cache:** 15-second TTL prevents redundant aggregator API calls
 - **Admin stats cache:** 60-second TTL per time range
+- **Auto-sell balance cache:** 120-second TTL per user, invalidated on sell
+
+### Bot Startup
+
+The Grammy Telegram bot uses resilient startup with retry logic:
+
+- **Initial delay:** 5 seconds (avoids overlap during Render zero-downtime deploys)
+- **Retries:** 5 attempts with escalating backoff (5s, 10s, 15s, 20s delays)
+- **Retryable errors:** 409 conflict (multiple instances) and network errors on `deleteWebhook`
+- **Price warmup:** Native prices (SOL, ETH) pre-fetched on startup to prevent null prices after cold restart
 
 ---
 
@@ -86,6 +96,22 @@ Neon provides a pgbouncer pooler endpoint for connection pooling. The Prisma cli
 | `poll:skip:{reason}` | Skip flags (rate limited, daily limit) | Varies |
 | `daily:spend:{userId}:{date}` | Daily spending tracker | 24h |
 | `ratelimit:{tier}:{identifier}` | Rate limit counters | 60s |
+
+---
+
+## Monthly Service Costs
+
+| Service | Plan | Monthly Cost |
+|---------|------|-------------|
+| Upstash Redis | REST API (pay-as-you-go) | ~$60 |
+| Helius | Developer (Solana RPC + WebSocket) | $50 |
+| Neon PostgreSQL | Serverless Launch | ~$20 |
+| Render | Starter (512 MB) | $7 |
+| Alchemy | Free tier (Base RPC + token discovery) | Free |
+| Jupiter | Free API key | Free |
+| **Total** | | **~$137/mo** |
+
+Budget ceiling: **$200/mo** — $63 buffer for usage spikes.
 
 ---
 
