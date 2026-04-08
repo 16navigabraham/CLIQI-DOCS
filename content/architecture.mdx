@@ -79,7 +79,7 @@ src/
 │   ├── trade-orchestrator.js # Core: like → validate → swap → confirm
 │   ├── price-oracle.js       # GeckoTerminal + DEXScreener (5-min cache)
 │   ├── notifications.js      # Telegram + WebSocket + X post + P&L dispatcher
-│   ├── auto-sell.js          # TP/SL monitoring (premium, every 30s)
+│   ├── auto-sell.js          # TP/SL monitoring (premium, every 5s, 24/7)
 │   ├── ca-parser.js          # Extract contract addresses from tweet text
 │   ├── error-notifier.js     # Admin TG alerts + Sentry (rate-limited)
 │   ├── premium-expiry.js     # Hourly downgrade check

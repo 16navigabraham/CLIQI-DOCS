@@ -48,10 +48,10 @@ GET /api/admin/stats?from=2026-03-01T00:00:00Z&to=2026-03-19T00:00:00Z  # Custom
       { "day": "2026-03-17", "signups": 1 }
     ],
     "recentSignups": [
-      { "xUsername": "alice", "isPremium": true, "createdAt": "2026-03-19T10:30:00.000Z" }
+      { "id": "clx...", "username": "alice", "isPremium": true, "createdAt": "2026-03-19T10:30:00.000Z" }
     ],
     "activePremium": [
-      { "xUsername": "alice", "premiumUntil": "2026-04-19T00:00:00.000Z" }
+      { "id": "clx...", "username": "alice", "expiresAt": "2026-04-19T00:00:00.000Z" }
     ]
   },
   "trades": {
@@ -135,4 +135,120 @@ GET /api/admin/stats?from=2026-03-01T00:00:00Z&to=2026-03-19T00:00:00Z  # Custom
 | 400 | Invalid query params (bad range value or date format) |
 | 401 | Missing or incorrect `ADMIN_SECRET` |
 | 503 | `ADMIN_SECRET` env var not configured on server |
+| 500 | Database query failed |
+
+---
+
+## GET /api/admin/users/search
+
+Search users by X username, Telegram username, or email. Returns up to 10 results.
+
+**Auth:** `Authorization: Bearer ADMIN_SECRET`
+
+**Query Params:**
+
+| Param | Required | Description |
+|-------|----------|-------------|
+| q | Yes | Search query (min 2 chars). Leading `@` is stripped automatically |
+
+**Example:**
+```
+GET /api/admin/users/search?q=alice
+GET /api/admin/users/search?q=@alice
+```
+
+**Response:**
+```json
+{
+  "users": [
+    {
+      "id": "clx...",
+      "username": "alice",
+      "isPremium": true,
+      "createdAt": "2026-03-19T10:30:00.000Z",
+      "tradeCount": 42
+    }
+  ]
+}
+```
+
+Returns empty array if query is too short: `{ "users": [] }`
+
+---
+
+## GET /api/admin/users/:userId
+
+Per-user trading activity breakdown with P&L, volume, fees, and recent trades.
+
+**Auth:** `Authorization: Bearer ADMIN_SECRET`
+
+**Example:**
+```
+GET /api/admin/users/clx1234abcd
+```
+
+**Response:**
+```json
+{
+  "user": {
+    "id": "clx...",
+    "xUsername": "alice",
+    "telegramUsername": null,
+    "email": "alice@example.com",
+    "isPremium": true,
+    "premiumUntil": "2026-04-19T00:00:00.000Z",
+    "isActive": true,
+    "isPaused": false,
+    "createdAt": "2026-03-01T00:00:00.000Z",
+    "username": "alice"
+  },
+  "trading": {
+    "total": 50,
+    "confirmed": 45,
+    "failed": 3,
+    "successRate": "90.0",
+    "buys": 30,
+    "sells": 15,
+    "byStatus": { "CONFIRMED": 45, "FAILED": 3, "PENDING": 2 },
+    "byChain": {
+      "BASE": { "trades": 30, "volumeUsd": "1500.00" },
+      "SOLANA": { "trades": 15, "volumeUsd": "800.00" }
+    }
+  },
+  "volume": {
+    "totalUsd": "2300.00",
+    "buyUsd": "1500.00",
+    "sellUsd": "800.00"
+  },
+  "pnl": {
+    "realisedUsd": "-120.50",
+    "totalSpentUsd": "1500.00",
+    "totalReceivedUsd": "1379.50",
+    "pnlPercent": "-8.0",
+    "status": "loss"
+  },
+  "fees": {
+    "totalUsd": "15.30"
+  },
+  "recentTrades": [
+    {
+      "id": "clx...",
+      "chain": "BASE",
+      "action": "BUY",
+      "tokenSymbol": "DEGEN",
+      "tokenAddress": "0xAbC...",
+      "amountInUsd": "50.00",
+      "amountOutUsd": "0.00",
+      "txStatus": "CONFIRMED",
+      "platformFeeUsd": "0.50",
+      "createdAt": "2026-04-07T12:00:00.000Z"
+    }
+  ]
+}
+```
+
+| Status | Meaning |
+|--------|---------|
+| 404 | User not found |
+| 401 | Missing or incorrect `ADMIN_SECRET` |
 | 500 | Database query failed |

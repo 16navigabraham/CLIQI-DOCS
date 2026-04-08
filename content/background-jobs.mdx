@@ -18,7 +18,7 @@ All background jobs use the **SafeInterval** pattern — a crash-resilient wrapp
 | **pricePush** | 30s | Broadcast live token prices to connected WebSocket clients |
 | **stuckTrades** | 5m | Resolve PENDING/SUBMITTED trades stuck > 10 min via on-chain check |
 | **premiumExpiration** | 1h | Downgrade expired premium users, send Telegram notification |
-| **autoSell** | 30s | Check TP/SL triggers on premium users' portfolio holdings |
+| **autoSell** | 5s | Check TP/SL triggers on premium users' portfolio holdings (24/7, no activity gate) |
 | **pnlMonitor** | 90s | Send P&L updates to premium TG users on significant changes |
 | **queueStats** | 1m | Log trade queue metrics when queue is non-empty |
 | **narrativeEngine** | 30m | Fetch emerging trends across all X topics → Grok scoring → Bankr token launch → TG notify premium (1.5 min head start) → post to X via @_Echoonbase (max 1/day) |
@@ -55,9 +55,9 @@ Downgrades users whose premium subscription has expired:
 3. Send Telegram notification: "Your premium has expired"
 4. Auto-sell monitoring stops for these users on next cycle
 
-### Auto-Sell Monitor (30s) — Premium Only
+### Auto-Sell Monitor (5s) — Premium Only, 24/7
 
-Monitors portfolio positions against take-profit and stop-loss thresholds. Processes all users in parallel for fast cycle times (~1.3–1.5s).
+Monitors portfolio positions against take-profit and stop-loss thresholds. Runs every 5 seconds with **no activity gate** — premium users pay for 24/7 monitoring regardless of WebSocket connections. Processes all users in parallel for fast cycle times (~1.3–1.5s).
 
 **Architecture:**
 1. Find all premium users with `autoSellEnabled = true`
@@ -108,6 +108,6 @@ Logs trade queue health metrics when the queue is not empty:
 To conserve resources on the 512 MB Render instance:
 
 - `activityGate.isActive()` returns `true` only when at least one WebSocket client is connected
-- When no users are connected, all background jobs skip their execution
+- When no users are connected, most background jobs skip their execution (exception: **autoSell** runs 24/7 for premium users)
 - The server effectively "sleeps" until a user connects
 - This prevents unnecessary API calls, RPC queries, and database load during idle periods

@@ -11,7 +11,12 @@
 
 ## What is CLIQI?
 
-CLIQI is an autonomous trading agent that operates across X (Twitter) and Telegram. It has two core features: **like-to-buy on X** — like a tweet containing a token address and CLIQI automatically buys it, and **Telegram trading** — buy, sell, and manage your full portfolio directly from the TG bot. The platform supports Base and Solana chains with embedded wallets — no seed phrases, no browser extensions.
+CLIQI is an autonomous trading agent that operates across X (Twitter) and Telegram. Two core features:
+
+- **X agent** — Like a tweet containing a token address, CLIQI detects it and buys instantly. Your timeline becomes your trading terminal.
+- **Telegram agent** — Add the bot to an alpha group, it watches for contract addresses from callers and auto-buys on your behalf. You can also buy, sell, and manage your full portfolio from DMs with the bot.
+
+The platform runs on Base and Solana with embedded wallets — no seed phrases, no browser extensions.
 
 ## How It Works
 
@@ -21,16 +26,22 @@ User likes tweet on X → CLIQI detects like → Extracts contract address →
 Validates token safety → Executes swap → User owns the token
 ```
 
-**Via Telegram:**
+**Via Telegram (DM):**
 ```
-User sends /buy <token> in TG bot → CLIQI validates token →
-Executes swap → Sends confirmation → User manages position via /portfolio
+User sends contract address → CLIQI validates token → Executes swap →
+Sends confirmation → Manage positions via /portfolio
+```
+
+**Via Telegram (Alpha Group):**
+```
+Alpha caller drops CA in group → CLIQI detects it → Auto-buys for
+all group members with the agent enabled → Sends DM confirmations
 ```
 
 ## Key Features
 
-- **Like-to-buy on X** — Connect X, like a tweet, own the token
-- **Telegram trading** — Buy, sell, close positions, and manage your portfolio from the TG bot
+- **X agent** — Connect X, like a tweet, own the token
+- **Telegram agent** — Buy, sell, and manage positions from DMs. Add the bot to alpha groups for auto-buy when callers drop CAs
 - **Telegram-first signup** — Create an account via TG, connect X later for like-to-buy
 - **Multi-chain** — Base + Solana with chain auto-detection
 - **Embedded wallets** — Powered by Privy (no seed phrases needed)
@@ -39,8 +50,8 @@ Executes swap → Sends confirmation → User manages position via /portfolio
 - **Auto-sell** — Take-profit & stop-loss monitoring (premium)
 - **Telegram notifications** — Real-time trade alerts (premium)
 - **PnL tracking** — Portfolio with realized/unrealized P&L and shareable trade cards
-- **Narrative token launch** — AI spots emerging trends across all of X (politics, AI, sports, world events), tokenizes them on Base via Bankr, 50/40/10 fee buyback
-- **Alpha group copy-trading** — Add bot to private TG groups, track alpha callers, auto-buy when they drop CAs
+- **Narrative token launch** — AI spots emerging trends across all of X (politics, AI, sports, world events), tokenizes them on Base via Bankr, 100% ECHO token buyback
+- **Alpha group auto-buy** — Part of the Telegram agent — tracks callers in private groups, auto-buys when they drop CAs
 - **Admin dashboard** — Real-time platform metrics
 
 ## Team

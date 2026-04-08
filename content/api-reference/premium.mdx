@@ -26,7 +26,7 @@ Valid chains: `BASE`, `SOLANA`
   "payment": {
     "chain": "BASE",
     "amount": 250000,
-    "amountUsd": 25.00,
+    "amountUsd": 10.00,
     "txHash": "0x5abc...",
     "explorerUrl": "https://basescan.org/tx/0x5abc..."
   }
@@ -71,7 +71,7 @@ Get payment history for premium subscriptions. Returns last 20 payments.
       "id": "clx...",
       "chain": "BASE",
       "amountPaid": "250000",
-      "amountUsd": "25.00",
+      "amountUsd": "10.00",
       "txHash": "0x5abc...",
       "explorerUrl": "https://basescan.org/tx/0x5abc...",
       "status": "CONFIRMED",
@@ -94,27 +94,21 @@ Get current premium pricing in different payment currencies.
 **Response:**
 ```json
 {
-  "priceUsd": 25.00,
+  "priceUsd": 10,
   "duration": "30 days",
-  "paymentOptions": {
-    "BASE": {
-      "amount": 250000,
-      "symbol": "CLIQI",
-      "priceUsd": 0.0001
-    },
-    "SOLANA": {
-      "amount": 250000,
-      "symbol": "CLIQI",
-      "priceUsd": 0.0001
-    }
+  "payment": {
+    "token": "CLIQI",
+    "tokenAddress": "0x075b111329bd8fb54c6e2c1aa6d742a435ad7ba3",
+    "chain": "BASE",
+    "amount": 250000,
+    "priceUsd": 0.00004
   },
   "features": [
     "0.5% platform fee (vs 1% for free users)",
-    "5s like polling (vs 8s for free users)",
     "Telegram notifications for all trades",
     "Auto-sell with take-profit & stop-loss",
-    "2-4x higher rate limits",
-    "7-day inactivity timeout (vs 48h)"
+    "Priority like monitoring (faster detection)",
+    "Priority support"
   ]
 }
 ```
