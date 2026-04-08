@@ -1,6 +1,6 @@
 # CLIQI
 
-> **Like It. Buy It.** — The automated trading agent that turns your X likes into instant token buys.
+> **Like It. Buy It.** — The autonomous trading agent for X and Telegram. Trade tokens from your likes or your chat — zero friction on Base and Solana.
 
 **Version:** 1.0.0
 **Chains:** Base (primary), Solana
@@ -11,19 +11,27 @@
 
 ## What is CLIQI?
 
-CLIQI is a social-signal trading platform. Users sign up via X (Twitter) or Telegram, and when they like a tweet containing a token contract address, CLIQI automatically executes a buy trade on their behalf. The platform supports Base and Solana chains with embedded wallets — no seed phrases, no browser extensions. Telegram-first users can trade via the TG bot and connect their X account later to enable like-to-buy automation.
+CLIQI is an autonomous trading agent that operates across X (Twitter) and Telegram. It has two core features: **like-to-buy on X** — like a tweet containing a token address and CLIQI automatically buys it, and **Telegram trading** — buy, sell, and manage your full portfolio directly from the TG bot. The platform supports Base and Solana chains with embedded wallets — no seed phrases, no browser extensions.
 
 ## How It Works
 
+**Via X (Like-to-Buy):**
 ```
 User likes tweet on X → CLIQI detects like → Extracts contract address →
 Validates token safety → Executes swap → User owns the token
 ```
 
+**Via Telegram:**
+```
+User sends /buy <token> in TG bot → CLIQI validates token →
+Executes swap → Sends confirmation → User manages position via /portfolio
+```
+
 ## Key Features
 
-- **Like-to-buy automation** — Connect X, like a tweet, own the token
-- **Telegram-first signup** — Create an account via TG, trade via bot, connect X later
+- **Like-to-buy on X** — Connect X, like a tweet, own the token
+- **Telegram trading** — Buy, sell, close positions, and manage your portfolio from the TG bot
+- **Telegram-first signup** — Create an account via TG, connect X later for like-to-buy
 - **Multi-chain** — Base + Solana with chain auto-detection
 - **Embedded wallets** — Powered by Privy (no seed phrases needed)
 - **Multi-aggregator routing** — Best price across 0x, Odos, KyberSwap, Jupiter
