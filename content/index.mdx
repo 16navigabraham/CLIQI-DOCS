@@ -1,6 +1,6 @@
 # CLIQI
 
-> **Like It. Buy It.** — The autonomous trading agent for X and Telegram. Trade tokens from your likes or your chat — zero friction on Base and Solana.
+> **Like It. Buy It.** — The autonomous trading agent for X and Telegram. Executes trades from X likes and Telegram alpha group signals on Base and Solana.
 
 **Version:** 1.0.0
 **Chains:** Base (primary), Solana
@@ -9,50 +9,41 @@
 
 ---
 
-## What is CLIQI?
+## Overview
 
-CLIQI is an autonomous trading agent that operates across X (Twitter) and Telegram. Two core features:
+CLIQI is an autonomous trading agent with two signal sources:
 
-- **X agent** — Like a tweet containing a token address, CLIQI detects it and buys instantly. Your timeline becomes your trading terminal.
-- **Telegram agent** — Add the bot to an alpha group, it watches for contract addresses from callers and auto-buys on your behalf. You can also buy, sell, and manage your full portfolio from DMs with the bot.
+- **X agent** — Polls authenticated users' X likes via OAuth 2.0. When a liked tweet contains a contract address, the system validates token safety (GoPlus + RugCheck) and executes a swap through multi-aggregator routing.
+- **Telegram agent** — Grammy bot monitors group messages from tracked alpha callers. On CA detection, executes buys for all subscribed users. DM interface exposes portfolio management, sell execution (inline buttons), and P&L tracking.
 
-The platform runs on Base and Solana with embedded wallets — no seed phrases, no browser extensions.
+Runs on Base and Solana. Wallets are Privy server-side embedded wallets (no seed phrase export).
 
-## How It Works
+## Trade Flows
 
-**Via X (Like-to-Buy):**
+**X (Like-to-Buy):**
 ```
-User likes tweet on X → CLIQI detects like → Extracts contract address →
-Validates token safety → Executes swap → User owns the token
-```
-
-**Via Telegram (DM):**
-```
-User sends contract address → CLIQI validates token → Executes swap →
-Sends confirmation → Manage positions via /portfolio
+Like detected (polling) → CA extracted (ca-parser) → Safety check →
+Price quote (multi-aggregator) → Swap execution → TX confirmation → Notify
 ```
 
-**Via Telegram (Alpha Group):**
+**Telegram (Alpha Group):**
 ```
-Alpha caller drops CA in group → CLIQI detects it → Auto-buys for
-all group members with the agent enabled → Sends DM confirmations
+Group message from tracked caller → CA parsed → Dedup (Redis) →
+Per-user buy via trade orchestrator → DM confirmation per user
 ```
 
-## Key Features
+## Core Systems
 
-- **X agent** — Connect X, like a tweet, own the token
-- **Telegram agent** — Buy, sell, and manage positions from DMs. Add the bot to alpha groups for auto-buy when callers drop CAs
-- **Telegram-first signup** — Create an account via TG, connect X later for like-to-buy
-- **Multi-chain** — Base + Solana with chain auto-detection
-- **Embedded wallets** — Powered by Privy (no seed phrases needed)
-- **Multi-aggregator routing** — Best price across 0x, Odos, KyberSwap, Jupiter
-- **USDC gasless trading** — Trade on Base without holding ETH
-- **Auto-sell** — Take-profit & stop-loss monitoring (premium)
-- **Telegram notifications** — Real-time trade alerts (premium)
-- **PnL tracking** — Portfolio with realized/unrealized P&L and shareable trade cards
-- **Narrative token launch** — AI spots emerging trends across all of X (politics, AI, sports, world events), tokenizes them on Base via Bankr, 100% ECHO token buyback
-- **Alpha group auto-buy** — Part of the Telegram agent — tracks callers in private groups, auto-buys when they drop CAs
-- **Admin dashboard** — Real-time platform metrics
+- **X like poller** — Per-user OAuth 2.0 polling (5s premium / 8s free), CA extraction from tweet text
+- **Alpha group handler** — Grammy `message:text` listener, caller tracking per user per group (max 10), Redis message dedup
+- **Trade orchestrator** — Validates → quotes → executes → confirms. Handles both buy and sell flows
+- **Multi-aggregator routing** — 0x, Odos, KyberSwap (Base); Jupiter, PumpPortal (Solana). Races quotes, picks best
+- **USDC gasless trading** — Treasury-sponsored gas on Base USDC sells
+- **Auto-sell** — Background job (5s, 24/7) monitors premium users' positions against TP/SL thresholds
+- **Telegram notifications** — Trade confirmations, P&L milestone alerts, narrative launches (premium)
+- **PnL tracking** — Realised P&L from confirmed buys/sells, unrealised from live price feeds
+- **Narrative engine** — Trend detection via X API → Grok scoring → Bankr token launch on Base → 100% ECHO buyback from creator fees
+- **Admin dashboard** — Platform metrics, per-user stats, user search, time-range filtering
 
 ## Team
 

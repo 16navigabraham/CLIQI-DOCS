@@ -2,12 +2,12 @@
 
 ## Complete Flow
 
-The trade pipeline is the core of CLIQI — it takes a user's X like and turns it into a token purchase in under 10 seconds.
+The trade pipeline handles the full lifecycle from signal detection (X like or alpha group CA) through to on-chain swap confirmation.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │ 1. DETECTION — like-poller.js                                   │
-│    Syncs every 30s, polls each user's X likes                   │
+│    Polls each user's X likes (5s premium / 8s free)             │
 │    Extracts contract addresses (EVM 0x... or Solana base58)     │
 │    Detects chain from address format                            │
 └──────────────────────────┬──────────────────────────────────────┘
