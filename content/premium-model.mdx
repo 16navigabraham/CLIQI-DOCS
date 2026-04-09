@@ -3,9 +3,11 @@
 ## Pricing
 
 - **Cost:** $10/month
-- **Payment:** CLIQI token on Base
-- **Token address:** `0x075b111329bd8fb54c6e2c1aa6d742a435ad7ba3`
+- **Payment methods:**
+  - **CLIQI token on Base** — `0x075b111329bd8fb54c6e2c1aa6d742a435ad7ba3`
+  - **SOL on Solana** — native SOL transfer to treasury
 - **Duration:** 30 days from payment confirmation
+- **Channels:** Dashboard (website) or Telegram `/premium` command
 
 ---
 
@@ -17,7 +19,8 @@
 | Platform fee | 1% (100 bps) | 0.5% (50 bps) |
 | X polling speed | 8s intervals | 5s intervals |
 | Auto-sell (TP/SL) | Not available | Every 5 seconds (24/7) |
-| Telegram notifications | Not available | Trade events, P&L updates (every 90s), narrative launches |
+| Telegram notifications | Not available | Trade events, P&L updates (every 90s), narrative launch alerts (before X post) |
+| Telegram commands | Not available | /portfolio, /premium, /trades, /stats |
 | API rate limits | Standard | 2-4x higher |
 | Inactivity timeout | 48 hours | 7 days |
 
@@ -25,14 +28,35 @@
 
 ## Payment Flow
 
-1. User selects payment chain (Base or Solana) in the dashboard
-2. Backend fetches current CLIQI token price
-3. Calculates required token amount ($10 / CLIQI price)
-4. User confirms the payment
-5. Backend transfers CLIQI tokens from user's wallet to treasury
-6. On-chain confirmation received
-7. `isPremium = true`, `premiumUntil = now + 30 days`
-8. `PremiumPayment` record created for audit trail
+Payment can be initiated from the **dashboard** (`POST /api/premium/pay`) or **Telegram** (`/premium` command).
+
+### Base (CLIQI Token)
+
+1. Fetch current CLIQI token price via DEXScreener
+2. Calculate required amount: `$10 / CLIQI price`
+3. Transfer CLIQI tokens from user's Base wallet to treasury
+4. On-chain confirmation received
+5. `isPremium = true`, `premiumUntil = now + 30 days`
+6. `PremiumPayment` record created
+
+### Solana (SOL)
+
+1. Fetch current SOL price via price oracle
+2. Calculate required amount: `$10 / SOL price`
+3. Transfer SOL from user's Solana wallet to treasury
+4. On-chain confirmation received
+5. `isPremium = true`, `premiumUntil = now + 30 days`
+6. `PremiumPayment` record created
+
+### Telegram Flow
+
+```
+/premium → Status check
+  ├── Active → Show expiry + Renew Early button
+  └── Not active → Choose payment method
+        ├── 💎 CLIQI Token (Base) → Confirm → Execute
+        └── ◎ SOL (Solana) → Confirm → Execute
+```
 
 ---
 

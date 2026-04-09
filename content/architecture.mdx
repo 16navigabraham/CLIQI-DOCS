@@ -59,6 +59,8 @@ src/
 │       ├── wallet.js         # /balance — wallet balances
 │       ├── portfolio.js      # /portfolio — active positions, sell flow
 │       ├── trades.js         # /trades, /stats — trade history & stats
+│       ├── premium.js        # /premium — subscribe via CLIQI (Base) or SOL (Solana)
+│       ├── alpha.js          # /alpha — group message handler
 │       └── narrative.js      # Narrative token buy flow (preset + custom amounts)
 ├── middleware/
 │   ├── auth.js               # JWT verification → req.user
@@ -72,7 +74,7 @@ src/
 │   ├── wallet.js             # Balances, deposits, withdrawals
 │   ├── wallet-export.js      # HPKE-encrypted private key export
 │   ├── settings.js           # Trading parameters, notifications, auto-sell
-│   ├── premium.js            # CLIQI token subscription ($10/mo)
+│   ├── premium.js            # Premium subscription ($10/mo — CLIQI on Base or SOL on Solana)
 │   ├── admin.js              # Admin dashboard stats (Bearer auth)
 │   └── narratives.js         # Narrative token list, detail, completion
 ├── services/

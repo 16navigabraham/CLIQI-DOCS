@@ -2,11 +2,15 @@
 
 ## POST /api/premium/subscribe
 
-Subscribe to premium using CLIQI token from your wallet.
+Subscribe to premium using CLIQI token (Base) or SOL (Solana).
 
 **Auth:** Required
 
-**Cost:** $10/month in CLIQI token
+**Cost:** $10/month
+
+**Payment methods:**
+- `BASE` — pays in CLIQI token (amount calculated from current CLIQI price)
+- `SOLANA` — pays in native SOL (amount calculated from current SOL price)
 
 **Request Body:**
 ```json
@@ -34,7 +38,7 @@ Valid chains: `BASE`, `SOLANA`
 ```
 
 **Errors:**
-- `400` — Invalid chain, already subscribed, or insufficient CLIQI balance
+- `400` — Invalid chain, already subscribed, or insufficient balance (CLIQI or SOL)
 - `404` — Wallet not found for specified chain
 - `500` — Payment processing failed
 
@@ -97,18 +101,27 @@ Get current premium pricing in different payment currencies.
   "priceUsd": 10,
   "duration": "30 days",
   "payment": {
-    "token": "CLIQI",
-    "tokenAddress": "0x075b111329bd8fb54c6e2c1aa6d742a435ad7ba3",
-    "chain": "BASE",
-    "amount": 250000,
-    "priceUsd": 0.00004
+    "base": {
+      "token": "CLIQI",
+      "tokenAddress": "0x075b111329bd8fb54c6e2c1aa6d742a435ad7ba3",
+      "chain": "BASE",
+      "amount": 250000,
+      "priceUsd": 0.00004
+    },
+    "solana": {
+      "token": "SOL",
+      "chain": "SOLANA",
+      "amount": 0.0667,
+      "priceUsd": 150.00
+    }
   },
   "features": [
     "0.5% platform fee (vs 1% for free users)",
     "Telegram notifications for all trades",
+    "Narrative launch alerts (before X post)",
     "Auto-sell with take-profit & stop-loss",
     "Priority like monitoring (faster detection)",
-    "Priority support"
+    "Telegram bot commands (/portfolio, /premium, /trades, /stats)"
   ]
 }
 ```
